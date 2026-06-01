@@ -5,12 +5,13 @@ use crate::metrics::cadence::{CadenceData, CadencePage};
 use crate::metrics::overview::{OverviewData, OverviewPage};
 
 use crate::error::Result;
-use crate::tui::page::Page;
+use crate::tui::page::{HomePage, Page};
 
 pub struct TuiState {
     pub is_quit: bool,
     pub loading: bool,
     pub active_page: Page,
+    pub home: HomePage,
     pub overview: OverviewPage,
     pub cadence: CadencePage,
 }
@@ -24,18 +25,14 @@ impl TuiState {
             is_quit: false,
             loading: false,
             active_page: Page::default(),
+            home: HomePage::new(),
             overview: OverviewPage::new(overview_data),
             cadence: CadencePage::new(cadence_data),
         })
     }
 
     pub fn next_tab(&mut self) {
-        let next_page = match self.active_page {
-            Page::Overview => Page::Cadence,
-            Page::Cadence => Page::Todo,
-            Page::Todo => Page::Overview,
-        };
-        self.active_page = next_page;
+        self.active_page = self.active_page.next();
     }
 
     pub fn handle_key_event(&mut self, key: KeyEvent, repo: &KitRepo) {

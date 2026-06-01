@@ -8,10 +8,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Padding, Tabs, TitlePosition},
 };
 
-use crate::tui::{ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, page::Page, state::TuiState};
+use crate::tui::{ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, page::Page, state::TuiState};
 
 pub fn render(frame: &mut Frame, state: &mut TuiState) {
-    let chunks = Layout::vertical([Constraint::Length(Page::size() as u16), Constraint::Min(0)])
+    let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]) // 3 chars is enough to render the nav text
         .margin(2)
         .split(frame.area());
 
@@ -20,6 +20,7 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
     let content_area = render_outer_frame(frame, chunks[1], state);
 
     match state.active_page {
+        Page::Home => state.home.render(frame, content_area),
         Page::Overview => state.overview.render(frame, content_area),
         Page::Cadence => state.cadence.render(frame, content_area),
         Page::Todo => {}
@@ -80,7 +81,7 @@ fn render_tabs(frame: &mut Frame, state: &TuiState, chunk: Rect) {
 }
 
 pub fn nav(state: &TuiState) -> Tabs<'static> {
-    let tab_titles = Page::ALL.iter().map(|page| page.to_tab());
+    let tab_titles = Page::ALL.iter().map(|page| page.to_str());
     let tabs = Tabs::new(tab_titles)
         .select(state.active_page as usize)
         .style(Style::default().fg(ACCENT_TEXT))

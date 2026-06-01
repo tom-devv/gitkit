@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use git2::Commit;
 
 use crate::git::kit::KitRepo;
+use crate::tui::Renderable;
 use crate::{error::Result, tui::ACCENT};
 
 use ratatui::{
@@ -45,6 +46,34 @@ pub struct AuthorDetails {
     pub first_commit: String,
     pub total_commits: u32,
     pub repo_share: f64,
+}
+
+impl Renderable for CadencePage {
+    fn render(&mut self, frame: &mut Frame, area: Rect) {
+        let block = Block::default().padding(Padding::horizontal(1));
+
+        frame.render_widget(block.clone(), area);
+
+        let inner_area = block.inner(area);
+
+        let left_constraint = Constraint::Percentage(60);
+        let right_constraint = Constraint::Percentage(40);
+        let middle_spacer = Constraint::Percentage(2);
+
+        let main_columns = Layout::horizontal([left_constraint, middle_spacer, right_constraint])
+            .split(inner_area);
+
+        let left_column = main_columns[0];
+        let right_column = main_columns[2];
+
+        self.author_table(frame, left_column);
+        self.chart(frame, right_column);
+
+        // show more info frame last, this will draw it on top
+        if let Some(details) = &self.selected_author {
+            self.more_info(frame, details);
+        }
+    }
 }
 
 impl CadencePage {
@@ -127,32 +156,6 @@ impl CadencePage {
             repo_share,
         };
         self.selected_author = Some(details);
-    }
-
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let block = Block::default().padding(Padding::horizontal(1));
-
-        frame.render_widget(block.clone(), area);
-
-        let inner_area = block.inner(area);
-
-        let left_constraint = Constraint::Percentage(60);
-        let right_constraint = Constraint::Percentage(40);
-        let middle_spacer = Constraint::Percentage(2);
-
-        let main_columns = Layout::horizontal([left_constraint, middle_spacer, right_constraint])
-            .split(inner_area);
-
-        let left_column = main_columns[0];
-        let right_column = main_columns[2];
-
-        self.author_table(frame, left_column);
-        self.chart(frame, right_column);
-
-        // show more info frame last, this will draw it on top
-        if let Some(details) = &self.selected_author {
-            self.more_info(frame, details);
-        }
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {

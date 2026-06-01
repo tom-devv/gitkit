@@ -2,6 +2,8 @@
 name = "gitkit"
 version = "0.1.0"
 edition = "2024"
+authors = ["tom-devv"]
+repository = "https://github.com/tom-devv/gitkit"
 
 [dependencies]
 chrono = "0.4.44"
