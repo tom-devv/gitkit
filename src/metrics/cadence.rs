@@ -1,15 +1,19 @@
-use std::ops::Index;
-
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
+use git2::Commit;
 
-use crate::{git::kit::KitRepo, tui::ui::draw_placeholder};
+use crate::git::kit::KitRepo;
+use crate::{error::Result, tui::ACCENT};
 
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Rect},
+    layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{BarChart, Block, BorderType, Borders, Cell, Padding, Row, Table, TableState},
+    text::{Line, Span},
+    widgets::{
+        BarChart, Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table,
+        TableState,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -22,15 +26,25 @@ pub struct CadenceData {
 pub struct CadencePage {
     pub data: CadenceData,
     pub selected_index: usize,
-    pub selected_author: Option<AuthorCommits>,
+    pub selected_author: Option<AuthorDetails>,
     pub table_state: TableState,
 }
 
 #[derive(Debug, Clone)]
 
+// remove this type
 pub struct AuthorCommits {
     pub name: String,
     pub commits_per_week: u32,
+}
+
+#[derive(Debug)]
+pub struct AuthorDetails {
+    pub name: String, // TODO:  fix these props later
+    pub commits_per_week: u32,
+    pub first_commit: String,
+    pub total_commits: u32,
+    pub repo_share: f64,
 }
 
 impl CadencePage {
@@ -43,11 +57,12 @@ impl CadencePage {
         }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent) {
+    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
         match key_event.code {
             KeyCode::Down | KeyCode::Char('j') => self.next_index(),
             KeyCode::Up | KeyCode::Char('k') => self.previous_index(),
-            KeyCode::Enter => self.select(),
+            KeyCode::Enter => self.select(repo),
+            KeyCode::Esc | KeyCode::Backspace => self.unselect(),
             _ => {}
         };
     }
@@ -72,33 +87,50 @@ impl CadencePage {
         }
     }
 
-    pub fn select(&mut self) {
-        if self.selected_author.is_some() {
-            self.selected_author = None
-        } else {
-            self.selected_author =
-                Some(self.data.author_commits_per_week[self.selected_index].clone());
-        }
+    // used to unselect (e.g using Esc)
+    pub fn unselect(&mut self) {
+        self.selected_author = None;
     }
 
-    pub fn more_info(&self, frame: &mut Frame) {
-        let area = frame
-            .area()
-            .centered(Constraint::Percentage(50), Constraint::Percentage(50));
+    // select author from commit list and fetch data for the more_info() window
+    pub fn select(&mut self, repo: &KitRepo) {
+        if self.selected_author.take().is_some() {
+            return;
+        }
 
-        let author = self.data.author_commits_per_week.index(self.selected_index);
-        draw_placeholder(
-            frame,
-            area,
-            format!("Author: {}", author.name).as_str(),
-            ratatui::style::Color::Green,
-        );
+        let AuthorCommits {
+            name,
+            commits_per_week,
+        } = self.data.author_commits_per_week[self.selected_index].clone();
+
+        let first_commit = CadenceData::author_first_commit(repo, &name)
+            .ok()
+            .flatten()
+            .map(|commit| {
+                commit_to_date(&commit)
+                    .map(|date| date.format("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_else(|| commit.time().seconds().to_string())
+            })
+            .unwrap_or_else(String::new);
+
+        let total_commits = repo
+            .get_author_commits(&name)
+            .map_or(0, |iter| iter.count()) as u32;
+
+        let repo_share = CadenceData::author_repository_share(repo, &name).unwrap_or(0.0);
+
+        let details = AuthorDetails {
+            name: name,
+            commits_per_week: commits_per_week,
+            first_commit,
+            total_commits,
+            repo_share,
+        };
+        self.selected_author = Some(details);
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .padding(Padding::horizontal(1));
+        let block = Block::default().padding(Padding::horizontal(1));
 
         frame.render_widget(block.clone(), area);
 
@@ -114,17 +146,16 @@ impl CadencePage {
         let left_column = main_columns[0];
         let right_column = main_columns[2];
 
-        frame.render_stateful_widget(self.author_table(), left_column, &mut self.table_state);
+        self.author_table(frame, left_column);
+        self.chart(frame, right_column);
 
-        frame.render_widget(self.chart(), right_column);
-
-        // Show more info frame last, this will draw it on top
-        if self.selected_author.is_some() {
-            self.more_info(frame);
+        // show more info frame last, this will draw it on top
+        if let Some(details) = &self.selected_author {
+            self.more_info(frame, details);
         }
     }
 
-    fn chart(&self) -> BarChart<'_> {
+    fn chart(&self, frame: &mut Frame, area: Rect) {
         let mut authors: Vec<(&String, &u32)> = self
             .data
             .author_commits_per_week
@@ -136,23 +167,25 @@ impl CadencePage {
         let chart_data: Vec<(&str, u64)> = authors
             .into_iter()
             .map(|(author, commits)| (author.as_str(), ((*commits) as f32).round() as u64))
+            .filter(|(_, commits)| *commits > 0) // remove non-commiters to save space
             .collect();
 
-        BarChart::default()
+        let chart = BarChart::default()
             .block(
                 Block::default()
                     .title(" Activity Overview ")
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::HeavyDoubleDashed),
+                    .borders(Borders::ALL),
             )
             .data(&chart_data)
             .bar_width(5)
             .bar_gap(2)
-            .bar_style(Style::default().fg(Color::Cyan))
-            .value_style(Style::default().fg(Color::Black).bg(Color::Cyan))
+            .bar_style(Style::default().fg(ACCENT))
+            .value_style(Style::default().fg(Color::Black).bg(ACCENT));
+
+        frame.render_widget(chart, area);
     }
 
-    fn author_table(&self) -> Table<'static> {
+    fn author_table(&mut self, frame: &mut Frame, area: Rect) {
         let widths = [Constraint::Percentage(50), Constraint::Percentage(30)];
 
         let rows: Vec<Row> = self
@@ -169,14 +202,77 @@ impl CadencePage {
             })
             .collect();
 
-        Table::new(rows, widths)
-            .row_highlight_style(Style::default().bg(Color::Indexed(237)))
-            .highlight_symbol("> ")
+        let table = Table::new(rows, widths)
+            .block(Block::default().title(" Authors ").borders(Borders::ALL))
+            .row_highlight_style(ACCENT)
+            .highlight_symbol("> ");
+
+        frame.render_stateful_widget(table, area, &mut self.table_state);
+    }
+
+    pub fn more_info(&self, frame: &mut Frame, details: &AuthorDetails) {
+        let area = frame
+            .area()
+            .centered(Constraint::Percentage(25), Constraint::Percentage(25));
+
+        let title = format!(" {} ", details.name);
+
+        let block = Block::bordered()
+            .border_type(BorderType::Thick)
+            .border_style(Style::default().fg(ACCENT))
+            .title(title)
+            .title_style(Color::White)
+            .title_alignment(Alignment::Center);
+
+        let key_style = Style::default().fg(Color::White);
+        let text = vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  Total Commits: ", key_style),
+                Span::raw(format!("{}", details.total_commits)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Commits/Week:  ", key_style),
+                Span::raw(format!("{}", details.commits_per_week)),
+            ]),
+            Line::from(vec![
+                Span::styled("  First Commit:  ", key_style),
+                Span::raw(format!("{}", details.first_commit)),
+            ]),
+            Line::from(vec![
+                Span::styled("  Repo Share:    ", key_style),
+                Span::raw(format!("{:.2}%", details.repo_share)),
+            ]),
+        ];
+
+        let paragraph = Paragraph::new(text).block(block).alignment(Alignment::Left);
+
+        frame.render_widget(Clear, area); // clear to remove underneath text
+        frame.render_widget(paragraph, area);
     }
 }
 
 impl CadenceData {
-    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<u32, git2::Error> {
+    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<Commit<'a>>> {
+        let commits = repo.get_author_commits(email)?;
+        Ok(commits.last()) // the commit list is in reverse order
+    }
+
+    pub fn author_repository_share(repo: &KitRepo, email: &str) -> Result<f64> {
+        let author_count = repo.get_author_commits(email)?.count();
+        let repo_count = repo.iter_commits()?.count();
+
+        if repo_count == 0 {
+            return Ok(0.0);
+        }
+
+        let share = (author_count as f64) / (repo_count as f64);
+
+        let percentage = share * 100.0;
+        Ok(percentage)
+    }
+
+    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<u32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .get_author_commits(email)?
             .filter_map(|commit| DateTime::from_timestamp_secs(commit.time().seconds()))
@@ -185,7 +281,7 @@ impl CadenceData {
         Ok(commits_per_week(&commit_dates))
     }
 
-    pub fn global_commits_per_week(repo: &KitRepo) -> Result<u32, git2::Error> {
+    pub fn global_commits_per_week(repo: &KitRepo) -> Result<u32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .iter_commits()?
             .filter_map(|commit| DateTime::from_timestamp_secs(commit.time().seconds()))
@@ -194,7 +290,7 @@ impl CadenceData {
         Ok(commits_per_week(&commit_dates))
     }
 
-    pub fn full_report(repo: &KitRepo) -> Result<Self, git2::Error> {
+    pub fn full_report(repo: &KitRepo) -> Result<Self> {
         let mut cadence = CadenceData {
             global_commits_per_week: Self::global_commits_per_week(repo)?,
             author_commits_per_week: Vec::new(),
@@ -210,6 +306,9 @@ impl CadenceData {
                 commits_per_week: commits_per_week(&commit_dates),
             });
         }
+        cadence
+            .author_commits_per_week
+            .sort_by(|a, b| b.commits_per_week.cmp(&a.commits_per_week));
         Ok(cadence)
     }
 }
@@ -240,4 +339,8 @@ fn telescope_time(datetimes: &[DateTime<Utc>]) -> Option<TimeDelta> {
     let count = (datetimes.len() - 1) as i32;
 
     total_duration.checked_div(count)
+}
+
+fn commit_to_date(commit: &Commit) -> Option<DateTime<Utc>> {
+    DateTime::from_timestamp_secs(commit.time().seconds())
 }

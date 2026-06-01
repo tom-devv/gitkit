@@ -38,17 +38,35 @@ impl TuiState {
         self.active_page = next_page;
     }
 
-    pub fn handle_key_event(&mut self, key: KeyEvent) {
+    pub fn handle_key_event(&mut self, key: KeyEvent, repo: &KitRepo) {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.is_quit = true,
+            KeyCode::Char('q') => self.is_quit = true, // todo add ctrl + c as quit
             KeyCode::Tab => self.next_tab(),
 
             _ => match self.active_page {
-                Page::Cadence => self.cadence.handle_key(key),
+                Page::Cadence => self.cadence.handle_key(key, repo),
                 // Page::Overview => self.overview.handle_key(key.code),
                 Page::Todo => {}
                 _ => {}
             },
+        }
+    }
+
+    pub fn get_binds(&self) -> Vec<(&str, &str)> {
+        match self.active_page {
+            Page::Overview => {
+                vec![("Tab", "Next"), ("q", "quit")]
+            }
+            Page::Cadence => {
+                vec![
+                    ("Tab", "Next"),
+                    ("(j,⇧)/(k,⇩)", "down/up"),
+                    ("⏎", "Select"),
+                    ("q", "quit"),
+                ]
+            }
+
+            _ => vec![("Tab", "Next"), ("q", "quit")],
         }
     }
 }

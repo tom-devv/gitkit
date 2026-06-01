@@ -12,6 +12,7 @@ impl KitRepo {
         Ok(KitRepo { inner: repo })
     }
 
+    // use iter_commits unless Vec<Commit> is needed
     pub fn get_all_commits<'a>(&'a self) -> Result<Vec<Commit<'a>>, Error> {
         let revwalk: Vec<Oid> = match self.inner.revwalk() {
             Ok(mut walk) => {

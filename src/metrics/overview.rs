@@ -1,4 +1,4 @@
-use ratatui::widgets::{Block, Borders};
+
 
 pub struct OverviewPage {
     pub data: OverviewData,
@@ -12,12 +12,5 @@ impl OverviewPage {
         Self { data }
     }
 
-    pub fn render(&self, frame: &mut ratatui::prelude::Frame, area: ratatui::prelude::Rect) {
-        let block_widg = Block::default()
-            .title("Overview")
-            .title_alignment(ratatui::layout::HorizontalAlignment::Center)
-            .borders(Borders::ALL);
-
-        frame.render_widget(block_widg, area);
-    }
+    pub fn render(&self, _frame: &mut ratatui::prelude::Frame, _area: ratatui::prelude::Rect) {}
 }

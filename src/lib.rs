@@ -46,7 +46,7 @@ pub fn run(args: GKitArgs) -> Result<()> {
     terminal.hide_cursor()?;
     terminal.clear()?;
 
-    let tui_result = tui(&mut terminal, &mut state);
+    let tui_result = tui(&mut terminal, &mut state, &repo);
 
     let _ = terminal.show_cursor();
     let _ = ratatui::crossterm::execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
@@ -58,6 +58,7 @@ pub fn run(args: GKitArgs) -> Result<()> {
 pub fn tui(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     state: &mut TuiState,
+    repo: &KitRepo,
 ) -> Result<()> {
     while !state.is_quit {
         terminal.draw(|frame| render(frame, state))?;
@@ -65,7 +66,7 @@ pub fn tui(
         if event::poll(Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    state.handle_key_event(key);
+                    state.handle_key_event(key, repo);
                 }
             }
         }
