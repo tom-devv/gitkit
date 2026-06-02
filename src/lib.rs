@@ -9,8 +9,8 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 
 use crate::{
     error::Result,
-    git::kit::KitRepo,
-    tui::{state::TuiState, ui::render},
+    git::{kit::KitRepo, util},
+    tui::{page::HomeData, state::TuiState, ui::render},
 };
 
 #[derive(Parser, Debug)]
@@ -33,6 +33,8 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
+        let homedata = HomeData::new(&repo);
+
         return Ok(());
     }
     let mut state = TuiState::new(&repo)?;

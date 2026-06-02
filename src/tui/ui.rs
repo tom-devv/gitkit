@@ -42,7 +42,7 @@ fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect 
 
 // keybind code from binsider
 // https://github.com/orhun/binsider/blob/ebbb36aeff178b42fb81911cc697173ec6d21972/src/tui/ui.rs#L174
-fn format_keybinds(state: &TuiState) -> Line<'_> {
+fn format_keybinds<'repo>(state: &'repo TuiState) -> Line<'repo> {
     let key_bindings = state.get_binds();
 
     Line::from(

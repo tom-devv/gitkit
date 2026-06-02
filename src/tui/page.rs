@@ -1,4 +1,4 @@
-
+use git2::Commit;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use crate::{
-    git::{kit::KitRepo, status::KitStatus},
+    git::{kit::KitRepo, status::KitStatus, util},
     tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable},
 };
 
@@ -44,15 +44,17 @@ impl Page {
     }
 }
 
-pub struct HomeData {
+pub struct HomeData<'repo> {
     pub repo_name: String, // directory name
     pub current_branch: String,
     pub total_commits: u32,
     pub status: KitStatus,
+    pub first_commit: Option<Commit<'repo>>, // maybe remove this and store something else, lifetime is overkill
+    pub last_commit: Option<Commit<'repo>>,
 }
 
-impl HomeData {
-    pub fn new(repo: &KitRepo) -> Self {
+impl<'repo> HomeData<'repo> {
+    pub fn new(repo: &'repo KitRepo) -> Self {
         let workdir = repo.inner.workdir().unwrap_or_else(|| repo.inner.path());
 
         let repo_name = workdir
@@ -71,26 +73,33 @@ impl HomeData {
 
         let status = repo.get_status();
 
+        // commit iter is reversed
+        let first_commit: Option<Commit<'_>> =
+            repo.iter_commits().map_or(None, |commits| commits.last());
+
+        let last_commit = repo
+            .iter_commits()
+            .map_or(None, |mut commits| commits.next());
+
         HomeData {
             repo_name,
             current_branch,
             total_commits,
             status,
+            first_commit,
+            last_commit,
         }
     }
 }
 
-pub struct HomePage {
-    data: HomeData,
+pub struct HomePage<'repo> {
+    data: HomeData<'repo>,
 }
 
-impl HomePage {
-    pub fn new(data: HomeData) -> Self {
+impl<'repo> HomePage<'repo> {
+    pub fn new(data: HomeData<'repo>) -> Self {
         HomePage { data }
     }
-}
-
-impl HomePage {
     // TODO make this scrollable
     fn info_box(&self, frame: &mut Frame, area: Rect) {
         let info_area = area.centered(Constraint::Percentage(50), Constraint::Percentage(50));
@@ -110,6 +119,9 @@ impl HomePage {
                 bottom: 0,
             });
 
+        let active_since = util::active_since(&self.data.first_commit);
+        let last_activity = util::last_activity(&self.data.last_commit);
+
         let mut info = vec![
             Line::from(vec![
                 "branch: ".fg(ACCENT).bold(),
@@ -120,6 +132,8 @@ impl HomePage {
                 format!("{}", self.data.total_commits).fg(WHITE),
             ]),
             Line::from("status: ".fg(ACCENT).bold()),
+            Line::from(active_since),
+            Line::from(last_activity),
         ];
 
         let status = &self.data.status;
@@ -134,7 +148,7 @@ impl HomePage {
     }
 }
 
-impl Renderable for HomePage {
+impl<'repo> Renderable for HomePage<'repo> {
     fn render(&mut self, frame: &mut ratatui::prelude::Frame, area: ratatui::prelude::Rect) {
         let header_height = GITKIT_ASCII.lines().count() as u16;
 

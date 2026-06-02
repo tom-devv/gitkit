@@ -6,17 +6,17 @@ use crate::metrics::cadence::{CadenceData, CadencePage};
 use crate::error::Result;
 use crate::tui::page::{HomeData, HomePage, Page};
 
-pub struct TuiState {
+pub struct TuiState<'repo> {
     pub is_quit: bool,
     pub loading: bool,
     pub active_page: Page,
-    pub home: HomePage,
+    pub home: HomePage<'repo>,
     pub cadence: CadencePage,
 }
 
-impl TuiState {
+impl<'repo> TuiState<'repo> {
     //By default new stats will be loading
-    pub fn new(repo: &KitRepo) -> Result<TuiState> {
+    pub fn new(repo: &'repo KitRepo) -> Result<TuiState> {
         let cadence_data = CadenceData::full_report(repo)?;
         let home_data = HomeData::new(repo);
         Ok(TuiState {

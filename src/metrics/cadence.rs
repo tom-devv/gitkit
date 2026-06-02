@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use git2::Commit;
 
 use crate::git::kit::KitRepo;
+use crate::git::util::commit_to_date;
 use crate::tui::Renderable;
 use crate::{error::Result, tui::ACCENT};
 
@@ -342,8 +343,4 @@ fn telescope_time(datetimes: &[DateTime<Utc>]) -> Option<TimeDelta> {
     let count = (datetimes.len() - 1) as i32;
 
     total_duration.checked_div(count)
-}
-
-fn commit_to_date(commit: &Commit) -> Option<DateTime<Utc>> {
-    DateTime::from_timestamp_secs(commit.time().seconds())
 }
