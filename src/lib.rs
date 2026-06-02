@@ -18,6 +18,9 @@ use crate::{
 pub struct GKitArgs {
     #[arg(default_value = ".")]
     target_path: String,
+
+    #[arg(long, hide = true)]
+    pub debug: bool,
 }
 
 pub mod error;
@@ -28,6 +31,10 @@ pub mod tui;
 pub fn run(args: GKitArgs) -> Result<()> {
     let repo = KitRepo::open(args.target_path)?;
 
+    if args.debug {
+        println!("Debug Mode\n");
+        return Ok(());
+    }
     let mut state = TuiState::new(&repo)?;
 
     let backend = CrosstermBackend::new(io::stdout());

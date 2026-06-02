@@ -1,9 +1,11 @@
 use std::{collections::HashSet, path::Path};
 
-use git2::{Commit, Diff, Error, Oid, Repository};
+use git2::{Commit, Diff, Error, Oid, Repository, StatusOptions, Statuses};
+
+use crate::git::status::KitStatus;
 
 pub struct KitRepo {
-    inner: Repository,
+    pub inner: Repository,
 }
 
 impl KitRepo {
@@ -96,5 +98,30 @@ impl KitRepo {
             .iter_commits()?
             .filter_map(|commit| self.get_parent_diff(&commit).ok());
         Ok(diffs)
+    }
+
+    pub fn current_branch(&self) -> Result<String, git2::Error> {
+        let head = self.inner.head()?;
+        head.shorthand().map(|s| s.to_owned())
+    }
+
+    pub fn get_status(&self) -> KitStatus {
+        KitStatus::new(&self)
+    }
+
+    fn get_raw_status(&self) -> Result<Statuses<'_>, git2::Error> {
+        let mut opts = StatusOptions::new();
+        opts.include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_ignored(false);
+
+        let statuses = self.inner.statuses(Some(&mut opts))?;
+
+        Ok(statuses)
+    }
+
+    pub fn is_dirty(&self) -> Result<bool, git2::Error> {
+        let statuses = self.get_raw_status()?;
+        Ok(!statuses.is_empty())
     }
 }

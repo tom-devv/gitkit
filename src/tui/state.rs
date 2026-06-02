@@ -2,17 +2,15 @@ use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::git::kit::KitRepo;
 use crate::metrics::cadence::{CadenceData, CadencePage};
-use crate::metrics::overview::{OverviewData, OverviewPage};
 
 use crate::error::Result;
-use crate::tui::page::{HomePage, Page};
+use crate::tui::page::{HomeData, HomePage, Page};
 
 pub struct TuiState {
     pub is_quit: bool,
     pub loading: bool,
     pub active_page: Page,
     pub home: HomePage,
-    pub overview: OverviewPage,
     pub cadence: CadencePage,
 }
 
@@ -20,13 +18,12 @@ impl TuiState {
     //By default new stats will be loading
     pub fn new(repo: &KitRepo) -> Result<TuiState> {
         let cadence_data = CadenceData::full_report(repo)?;
-        let overview_data = OverviewData::default();
+        let home_data = HomeData::new(repo);
         Ok(TuiState {
             is_quit: false,
             loading: false,
             active_page: Page::default(),
-            home: HomePage::new(),
-            overview: OverviewPage::new(overview_data),
+            home: HomePage::new(home_data),
             cadence: CadencePage::new(cadence_data),
         })
     }
@@ -51,7 +48,7 @@ impl TuiState {
 
     pub fn get_binds(&self) -> Vec<(&str, &str)> {
         match self.active_page {
-            Page::Overview => {
+            Page::Home => {
                 vec![("Tab", "Next"), ("q", "quit")]
             }
             Page::Cadence => {
