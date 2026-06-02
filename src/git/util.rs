@@ -1,10 +1,25 @@
+use std::fmt::format;
+
 use chrono::{DateTime, Utc};
 use git2::Commit;
+use ratatui::{
+    style::{Stylize, palette::material::WHITE},
+    text::Line,
+};
+
+use crate::tui::{ACCENT, ACCENT_TEXT};
+
+const NOT_FOUND: &str = "not found";
+
+pub fn not_found() -> Line<'static> {
+    Line::from(NOT_FOUND.to_owned().fg(ACCENT_TEXT))
+}
 
 pub fn commit_to_date(commit: &Commit) -> Option<DateTime<Utc>> {
     DateTime::from_timestamp_secs(commit.time().seconds())
 }
-pub fn active_since(commit: &Option<Commit>) -> String {
+
+pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
     if let Some(c) = commit {
         if let Some(commit_date) = commit_to_date(&c) {
             let now = Utc::now();
@@ -13,16 +28,19 @@ pub fn active_since(commit: &Option<Commit>) -> String {
             let duration = now.signed_duration_since(commit_date);
             let years = duration.num_days() as f64 / 365.0;
 
-            format!("active since {} ({:.1} years)", readable_date, years)
+            Line::from(vec![
+                "active since: ".fg(ACCENT).bold(),
+                format!("{} ({:.1}) years", readable_date, years).fg(WHITE),
+            ])
         } else {
-            "not found".to_string()
+            not_found()
         }
     } else {
-        "not found".to_string()
+        not_found()
     }
 }
 
-pub fn last_activity(commit: &Option<Commit>) -> String {
+pub fn last_activity(commit: &Option<Commit>) -> Line<'static> {
     if let Some(c) = commit {
         if let Some(commit_date) = commit_to_date(&c) {
             let mut hash = c.id().to_string();
@@ -37,14 +55,17 @@ pub fn last_activity(commit: &Option<Commit>) -> String {
             let duration = now.signed_duration_since(commit_date);
             let hours = duration.num_hours() as f64;
 
-            format!(
-                "last activity ({}) by: {} {} hours ago",
-                hash, author, hours
-            )
+            Line::from(vec![
+                "last activity: ".fg(ACCENT).bold(),
+                format!("({}) ", hash).fg(WHITE),
+                "by: ".fg(ACCENT_TEXT),
+                format!("{} {} ", author, hours).fg(WHITE),
+                "hours ago".fg(ACCENT_TEXT),
+            ])
         } else {
-            "not found".to_string()
+            not_found()
         }
     } else {
-        "not found".to_string()
+        not_found()
     }
 }

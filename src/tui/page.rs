@@ -131,13 +131,13 @@ impl<'repo> HomePage<'repo> {
                 "total commits: ".fg(ACCENT).bold(),
                 format!("{}", self.data.total_commits).fg(WHITE),
             ]),
-            Line::from("status: ".fg(ACCENT).bold()),
-            Line::from(active_since),
-            Line::from(last_activity),
+            active_since,
+            last_activity,
         ];
 
         let status = &self.data.status;
 
+        info.push(Line::from("status: ".fg(ACCENT).bold()));
         info.extend(status.tui_print());
 
         let paragraph = Paragraph::new(info)
