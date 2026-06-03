@@ -22,7 +22,7 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
     match state.active_page {
         Page::Home => state.home.render(frame, content_area),
         Page::Cadence => state.cadence.render(frame, content_area),
-        Page::Todo => {}
+        Page::Silo => {}
         _ => {}
     }
 }

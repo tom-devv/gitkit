@@ -4,6 +4,7 @@ use crate::git::kit::KitRepo;
 use crate::metrics::cadence::{CadenceData, CadencePage};
 
 use crate::error::Result;
+use crate::metrics::silo::{SiloData, SiloPage};
 use crate::tui::page::{HomeData, HomePage, Page};
 
 pub struct TuiState<'repo> {
@@ -12,6 +13,7 @@ pub struct TuiState<'repo> {
     pub active_page: Page,
     pub home: HomePage<'repo>,
     pub cadence: CadencePage,
+    pub silo: SiloPage,
 }
 
 impl<'repo> TuiState<'repo> {
@@ -19,12 +21,14 @@ impl<'repo> TuiState<'repo> {
     pub fn new(repo: &'repo KitRepo) -> Result<TuiState> {
         let cadence_data = CadenceData::full_report(repo)?;
         let home_data = HomeData::new(repo);
+        let silo_data = SiloData::new(repo);
         Ok(TuiState {
             is_quit: false,
             loading: false,
             active_page: Page::default(),
             home: HomePage::new(home_data),
             cadence: CadencePage::new(cadence_data),
+            silo: SiloPage::new(silo_data),
         })
     }
 
@@ -40,7 +44,7 @@ impl<'repo> TuiState<'repo> {
             _ => match self.active_page {
                 Page::Cadence => self.cadence.handle_key(key, repo),
                 // Page::Overview => self.overview.handle_key(key.code),
-                Page::Todo => {}
+                Page::Silo => {}
                 _ => {}
             },
         }

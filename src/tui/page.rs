@@ -17,17 +17,17 @@ pub enum Page {
     #[default]
     Home = 0,
     Cadence = 1,
-    Todo = 2,
+    Silo = 2,
 }
 
 impl Page {
-    pub const ALL: [Page; 3] = [Page::Home, Page::Cadence, Page::Todo];
+    pub const ALL: [Page; 3] = [Page::Home, Page::Cadence, Page::Silo];
 
     pub fn to_str(&self) -> &'static str {
         match self {
             Page::Home => "Home",
             Page::Cadence => "Cadence",
-            Page::Todo => "Todo",
+            Page::Silo => "Silo",
         }
     }
 
@@ -38,8 +38,8 @@ impl Page {
     pub fn next(&self) -> Page {
         match &self {
             Page::Home => Page::Cadence,
-            Page::Cadence => Page::Todo,
-            Page::Todo => Page::Home,
+            Page::Cadence => Page::Silo,
+            Page::Silo => Page::Home,
         }
     }
 }

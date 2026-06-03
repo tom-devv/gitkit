@@ -21,7 +21,7 @@ pub fn commit_to_date(commit: &Commit) -> Option<DateTime<Utc>> {
 
 pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
     if let Some(c) = commit {
-        if let Some(commit_date) = commit_to_date(&c) {
+        if let Some(commit_date) = commit_to_date(c) {
             let now = Utc::now();
             let readable_date = commit_date.format("%Y/%m/%d").to_string();
 
@@ -30,7 +30,7 @@ pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
 
             Line::from(vec![
                 "active since: ".fg(ACCENT).bold(),
-                format!("{} ({:.1}) years", readable_date, years).fg(WHITE),
+                format!("{} ({:.1} years)", readable_date, years).fg(WHITE),
             ])
         } else {
             not_found()
@@ -42,7 +42,7 @@ pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
 
 pub fn last_activity(commit: &Option<Commit>) -> Line<'static> {
     if let Some(c) = commit {
-        if let Some(commit_date) = commit_to_date(&c) {
+        if let Some(commit_date) = commit_to_date(c) {
             let mut hash = c.id().to_string();
             hash.truncate(7);
             let author = c
@@ -57,10 +57,11 @@ pub fn last_activity(commit: &Option<Commit>) -> Line<'static> {
 
             Line::from(vec![
                 "last activity: ".fg(ACCENT).bold(),
-                format!("({}) ", hash).fg(WHITE),
+                format!("({}) ", hash).fg(ACCENT_TEXT),
+                format!("{} ", hours).fg(WHITE),
+                "hours ago ".fg(ACCENT_TEXT),
                 "by: ".fg(ACCENT_TEXT),
-                format!("{} {} ", author, hours).fg(WHITE),
-                "hours ago".fg(ACCENT_TEXT),
+                format!("{} ", author).fg(WHITE),
             ])
         } else {
             not_found()
