@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
     style::{Stylize, palette::material::WHITE},
     text::{Line, Text},
-    widgets::{Block, Padding, Paragraph},
+    widgets::{Block, Padding, Paragraph, Wrap},
 };
 
 use crate::{
@@ -102,7 +102,6 @@ impl<'repo> HomePage<'repo> {
     }
     // TODO make this scrollable
     fn info_box(&self, frame: &mut Frame, area: Rect) {
-        let info_area = area.centered(Constraint::Percentage(50), Constraint::Percentage(50));
         let title = Line::from(vec![
             "|<".into(),
             "Repository: ".fg(ACCENT_TEXT).bold(),
@@ -140,9 +139,19 @@ impl<'repo> HomePage<'repo> {
         info.push(Line::from("status: ".fg(ACCENT).bold()));
         info.extend(status.tui_print());
 
+        // +2 borders + 1 padding (top) TODO make this better
+        // paragraph wrap seems to break the last info lines
+        let min_height = info.len() as u16 + (info.len() as u16) / 2 + 3;
+
+        let vertical_chunks =
+            Layout::vertical([Constraint::Length(min_height), Constraint::Min(0)]).split(area);
+
+        let info_area = vertical_chunks[0].centered_horizontally(Constraint::Percentage(50));
+
         let paragraph = Paragraph::new(info)
             .block(general)
-            .alignment(Alignment::Left);
+            .alignment(Alignment::Left)
+            .wrap(Wrap { trim: true });
 
         frame.render_widget(paragraph, info_area);
     }
@@ -157,7 +166,8 @@ impl<'repo> Renderable for HomePage<'repo> {
             Constraint::Length(header_height),
             Constraint::Length(1), // padding
             Constraint::Length(subtext_height),
-            Constraint::Min(0), // rest of page
+            Constraint::Length(2), // padding
+            Constraint::Min(0),    // rest of page
         ])
         .split(area);
 
@@ -174,6 +184,6 @@ impl<'repo> Renderable for HomePage<'repo> {
 
         frame.render_widget(header, chunks[0]);
         frame.render_widget(sub_text, chunks[2]);
-        self.info_box(frame, chunks[3]);
+        self.info_box(frame, chunks[4]);
     }
 }
