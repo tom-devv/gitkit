@@ -37,8 +37,6 @@ pub fn run(args: GKitArgs) -> Result<()> {
         println!("Debug Mode\n");
         let churn = SiloData::get_churn(&repo)?;
 
-        println!("{:?}", churn.len());
-
         return Ok(());
     }
     let mut state = TuiState::new(&repo)?; // blocking
