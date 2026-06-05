@@ -53,7 +53,7 @@ impl Renderable for CadencePage {
     fn render(&mut self, frame: &mut Frame, area: Rect) {
         let block = Block::default().padding(Padding::horizontal(1));
 
-        frame.render_widget(block.clone(), area);
+        frame.render_widget(&block, area);
 
         let inner_area = block.inner(area);
 

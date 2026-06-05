@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path};
 
-use git2::{Commit, Diff, Error, Oid, Repository, StatusOptions, Statuses};
+use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
 
 use crate::git::status::KitStatus;
 
@@ -74,29 +74,39 @@ impl KitRepo {
         &self,
         parent: Option<&Commit>,
         current: Option<&Commit>,
+        opts: Option<&mut DiffOptions>,
     ) -> Result<Diff<'_>, git2::Error> {
         let parent_tree = parent.map(|c| c.tree()).transpose()?;
         let current_tree = current.map(|c| c.tree()).transpose()?;
 
         let diff =
             self.inner
-                .diff_tree_to_tree(parent_tree.as_ref(), current_tree.as_ref(), None)?;
+                .diff_tree_to_tree(parent_tree.as_ref(), current_tree.as_ref(), opts)?;
         Ok(diff)
     }
 
-    pub fn get_parent_diff(&self, commit: &Commit) -> Result<Diff<'_>, git2::Error> {
+    pub fn get_parent_diff(
+        &self,
+        commit: &Commit,
+        opts: Option<&mut DiffOptions>,
+    ) -> Result<Diff<'_>, git2::Error> {
         let parent_commit = match commit.parent(0) {
             Ok(parent) => Some(parent),
             Err(_) => None,
         };
 
-        self.get_diff(parent_commit.as_ref(), Some(commit))
+        self.get_diff(parent_commit.as_ref(), Some(commit), opts)
     }
 
-    pub fn iter_all_diffs(&self) -> Result<impl Iterator<Item = Diff<'_>>, git2::Error> {
-        let diffs = self
-            .iter_commits()?
-            .filter_map(|commit| self.get_parent_diff(&commit).ok());
+    pub fn iter_all_diffs(
+        &self,
+        mut opts: Option<&mut DiffOptions>,
+    ) -> Result<impl Iterator<Item = (Commit<'_>, Diff<'_>)>, git2::Error> {
+        let diffs = self.iter_commits()?.filter_map(move |commit| {
+            self.get_parent_diff(&commit, opts.as_deref_mut())
+                .ok()
+                .map(|diff| (commit, diff))
+        });
         Ok(diffs)
     }
 

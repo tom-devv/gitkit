@@ -1,4 +1,3 @@
-use std::fmt::format;
 
 use chrono::{DateTime, Utc};
 use git2::Commit;

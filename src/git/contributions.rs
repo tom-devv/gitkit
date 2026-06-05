@@ -21,7 +21,7 @@ impl KitRepo {
     pub fn get_entire_repo_contribution(&self) -> Result<Contribution, git2::Error> {
         let mut contrib = Contribution::default();
         for commit in self.iter_commits()? {
-            let diff = self.get_parent_diff(&commit)?;
+            let diff = self.get_parent_diff(&commit, None)?; // TODO add opts argument
             let stats = diff.stats()?;
 
             contrib.add_stats(stats);
@@ -32,7 +32,7 @@ impl KitRepo {
     pub fn get_lifetime_contributions(&self, email: String) -> Result<Contribution, git2::Error> {
         let mut contrib = Contribution::default();
         for commit in self.get_author_commits(&email)? {
-            let diff = self.get_parent_diff(&commit)?;
+            let diff = self.get_parent_diff(&commit, None)?; // TODO add opts argument
             let stats = diff.stats()?;
             contrib.add_stats(stats);
         }

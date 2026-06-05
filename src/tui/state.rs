@@ -17,8 +17,7 @@ pub struct TuiState<'repo> {
 }
 
 impl<'repo> TuiState<'repo> {
-    //By default new stats will be loading
-    pub fn new(repo: &'repo KitRepo) -> Result<TuiState> {
+    pub fn new(repo: &'repo KitRepo) -> Result<TuiState<'repo>> {
         let cadence_data = CadenceData::full_report(repo)?;
         let home_data = HomeData::new(repo);
         let silo_data = SiloData::new(repo);
@@ -43,9 +42,8 @@ impl<'repo> TuiState<'repo> {
 
             _ => match self.active_page {
                 Page::Cadence => self.cadence.handle_key(key, repo),
-                // Page::Overview => self.overview.handle_key(key.code),
-                Page::Silo => {}
-                _ => {}
+                Page::Silo => self.silo.handle_key(key, repo),
+                Page::Home => {}
             },
         }
     }
@@ -58,13 +56,14 @@ impl<'repo> TuiState<'repo> {
             Page::Cadence => {
                 vec![
                     ("Tab", "Next"),
-                    ("(j,⇧)/(k,⇩)", "down/up"),
+                    ("(k,⇧)/(j,⇩)", "up/down"),
                     ("⏎", "Select"),
                     ("q", "quit"),
                 ]
             }
-
-            _ => vec![("Tab", "Next"), ("q", "quit")],
+            Page::Silo => {
+                vec![("Tab", "Next"), ("(k,⇧)/(j,⇩)", "up/down"), ("q", "quit")]
+            }
         }
     }
 }

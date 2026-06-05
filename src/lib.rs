@@ -3,14 +3,16 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use git2::Binding;
 use std::{io, panic, time::Duration};
 
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 use crate::{
     error::Result,
-    git::{kit::KitRepo, util},
-    tui::{page::HomeData, state::TuiState, ui::render},
+    git::kit::KitRepo,
+    metrics::silo::SiloData,
+    tui::{state::TuiState, ui::render},
 };
 
 #[derive(Parser, Debug)]
@@ -33,11 +35,13 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
-        let homedata = HomeData::new(&repo);
+        let churn = SiloData::get_churn(&repo)?;
+
+        println!("{:?}", churn.len());
 
         return Ok(());
     }
-    let mut state = TuiState::new(&repo)?;
+    let mut state = TuiState::new(&repo)?; // blocking
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
