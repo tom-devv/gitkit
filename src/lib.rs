@@ -3,15 +3,23 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{io, panic, time::Duration};
+use std::{io, panic, sync::mpsc, thread, time::Duration};
 
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 use crate::{
     error::Result,
     git::kit::KitRepo,
-    tui::{state::TuiState, ui::render},
+    metrics::{cadence::CadenceData, silo::SiloData},
+    tui::{page::HomeData, state::TuiState, ui::render},
+    worker::Worker,
 };
+
+pub mod error;
+pub mod git;
+pub mod metrics;
+pub mod tui;
+pub mod worker;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -22,11 +30,6 @@ pub struct GKitArgs {
     #[arg(long, hide = true)]
     pub debug: bool,
 }
-
-pub mod error;
-pub mod git;
-pub mod metrics;
-pub mod tui;
 
 pub fn run(args: GKitArgs) -> Result<()> {
     let repo = KitRepo::open(args.target_path)?;
@@ -67,14 +70,25 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
 pub fn tui<'a>(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    state: &mut TuiState<'a>,
+    state: &mut TuiState,
     repo: &'a KitRepo,
 ) -> Result<()> {
+    let repo_path = repo.inner.path().to_path_buf();
+
+    let worker = Worker::start(repo_path);
+
     while !state.is_quit {
         terminal.draw(|frame| render(frame, state))?;
 
         if state.refresh {
-            state.refresh(repo);
+            state.refresh = false;
+            state.loading = true;
+            worker.trigger_refresh();
+        }
+
+        // when chan gets message do refresh
+        if let Ok(payload) = worker.payload_rx.try_recv() {
+            state.refresh(payload);
         }
 
         if event::poll(Duration::from_millis(16))? {
@@ -85,6 +99,8 @@ pub fn tui<'a>(
             }
         }
     }
+
+    worker.quit();
 
     Ok(())
 }

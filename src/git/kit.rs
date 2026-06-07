@@ -2,13 +2,13 @@ use std::{collections::HashSet, path::Path};
 
 use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
 
-use crate::git::{self, status::KitStatus};
+use crate::git::{self, contributions::Contribution, model::KitCommit, status::KitStatus};
 
 pub struct KitRepo {
     pub inner: Repository,
 }
 
-impl KitRepo {
+impl<'repo> KitRepo {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<KitRepo, Error> {
         let repo = Repository::open(path)?;
         Ok(KitRepo { inner: repo })
@@ -42,7 +42,7 @@ impl KitRepo {
     }
 
     // use iter_commits unless Vec<Commit> is needed
-    pub fn get_all_commits<'a>(&'a self) -> Result<Vec<Commit<'a>>, Error> {
+    pub fn get_all_commits<'a>(&'a self) -> Result<Vec<KitCommit>, Error> {
         let revwalk: Vec<Oid> = match self.inner.revwalk() {
             Ok(mut walk) => {
                 if let Err(e) = walk.push_head() {
@@ -54,15 +54,16 @@ impl KitRepo {
             Err(e) => panic!("Failed to create revwalk: {}", e),
         };
 
-        let commits: Vec<Commit<'a>> = revwalk
+        let commits: Vec<KitCommit> = revwalk
             .iter()
             .map(|oid| self.inner.find_commit(*oid).unwrap())
+            .map(|c| KitCommit::from_git2(&c))
             .collect();
 
         Ok(commits)
     }
 
-    pub fn iter_commits(&self) -> Result<impl Iterator<Item = Commit<'_>>, git2::Error> {
+    pub fn iter_commits(&self) -> Result<impl Iterator<Item = KitCommit>, git2::Error> {
         let mut revwalk = self.inner.revwalk()?;
         revwalk.push_head()?;
 
@@ -70,16 +71,14 @@ impl KitRepo {
 
         Ok(revwalk
             .flatten()
-            .filter_map(move |oid| repo_ref.find_commit(oid).ok()))
+            .filter_map(move |oid| repo_ref.find_commit(oid).ok())
+            .map(|c| KitCommit::from_git2(&c)))
     }
 
     pub fn get_authors(&self) -> Result<HashSet<String>, git2::Error> {
         let mut authors: HashSet<String> = HashSet::new();
         for commit in self.iter_commits()? {
-            let commiter = commit.author();
-            if let Ok(email) = commiter.email() {
-                authors.insert(email.to_owned());
-            }
+            authors.insert(commit.email);
         }
 
         Ok(authors)
@@ -88,11 +87,11 @@ impl KitRepo {
     pub fn get_author_commits(
         &self,
         email: &str,
-    ) -> Result<impl Iterator<Item = Commit<'_>>, git2::Error> {
+    ) -> Result<impl Iterator<Item = KitCommit>, git2::Error> {
         let email_owned = email.to_string();
         let iter = self
             .iter_commits()?
-            .filter(move |commit| commit.author().email().map_or(false, |e| e == email_owned));
+            .filter(move |commit| commit.email == email_owned);
 
         Ok(iter)
     }
@@ -114,7 +113,7 @@ impl KitRepo {
 
     pub fn get_parent_diff(
         &self,
-        commit: &Commit,
+        commit: &Commit<'repo>,
         opts: Option<&mut DiffOptions>,
     ) -> Result<Diff<'_>, git2::Error> {
         let parent_commit = match commit.parent(0) {
@@ -128,7 +127,7 @@ impl KitRepo {
     // get all diffs exlcuding merge commits
     pub fn iter_diff_history<'a>(
         &'a self,
-    ) -> Result<impl Iterator<Item = (Commit<'a>, Diff<'a>)> + 'a, git2::Error> {
+    ) -> Result<impl Iterator<Item = (KitCommit, Diff<'a>)> + 'a, git2::Error> {
         let mut revwalk = self.inner.revwalk()?;
         revwalk.push_head()?;
 
@@ -162,7 +161,7 @@ impl KitRepo {
                 )
                 .ok()?;
 
-            Some((commit, diff))
+            Some((KitCommit::from_git2(&commit), diff))
         });
 
         Ok(diff_iter)

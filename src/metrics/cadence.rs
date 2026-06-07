@@ -1,9 +1,8 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
-use git2::Commit;
 
 use crate::git::kit::KitRepo;
-use crate::git::util::commit_to_date;
+use crate::git::model::KitCommit;
 use crate::tui::Renderable;
 use crate::{error::Result, tui::ACCENT};
 
@@ -137,9 +136,10 @@ impl CadencePage {
             .ok()
             .flatten()
             .map(|commit| {
-                commit_to_date(&commit)
+                commit
+                    .date
                     .map(|date| date.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_else(|| commit.time().seconds().to_string())
+                    .unwrap_or_else(|| commit.time_seconds.to_string())
             })
             .unwrap_or_else(String::new);
 
@@ -257,7 +257,7 @@ impl CadencePage {
 }
 
 impl CadenceData {
-    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<Commit<'a>>> {
+    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<KitCommit>> {
         let commits = repo.get_author_commits(email)?;
         Ok(commits.last()) // the commit list is in reverse order
     }
@@ -279,7 +279,7 @@ impl CadenceData {
     pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<u32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .get_author_commits(email)?
-            .filter_map(|commit| DateTime::from_timestamp_secs(commit.time().seconds()))
+            .filter_map(|commit| commit.date)
             .collect();
 
         Ok(commits_per_week(&commit_dates))
@@ -288,32 +288,32 @@ impl CadenceData {
     pub fn global_commits_per_week(repo: &KitRepo) -> Result<u32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .iter_commits()?
-            .filter_map(|commit| DateTime::from_timestamp_secs(commit.time().seconds()))
+            .filter_map(|commit| commit.date)
             .collect();
 
         Ok(commits_per_week(&commit_dates))
     }
 
-    pub fn full_report(repo: &KitRepo) -> Result<Self> {
+    pub fn new(repo: &KitRepo) -> Self {
         let mut cadence = CadenceData {
-            global_commits_per_week: Self::global_commits_per_week(repo)?,
+            global_commits_per_week: Self::global_commits_per_week(repo).unwrap_or(0),
             author_commits_per_week: Vec::new(),
         };
-        for author in repo.get_authors()? {
-            let commit_dates: Vec<DateTime<Utc>> = repo
-                .get_author_commits(&author)?
-                .filter_map(|commit| DateTime::from_timestamp_secs(commit.time().seconds()))
-                .collect();
+        for author in repo.get_authors().unwrap_or_default() {
+            if let Ok(author_commits) = repo.get_author_commits(&author) {
+                let commit_dates: Vec<DateTime<Utc>> =
+                    author_commits.filter_map(|commit| commit.date).collect();
 
-            cadence.author_commits_per_week.push(AuthorCommits {
-                name: author,
-                commits_per_week: commits_per_week(&commit_dates),
-            });
+                cadence.author_commits_per_week.push(AuthorCommits {
+                    name: author.clone(),
+                    commits_per_week: commits_per_week(&commit_dates),
+                });
+            }
         }
         cadence
             .author_commits_per_week
             .sort_by(|a, b| b.commits_per_week.cmp(&a.commits_per_week));
-        Ok(cadence)
+        cadence
     }
 }
 
