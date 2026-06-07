@@ -1,5 +1,5 @@
 use divan::{Bencher, black_box};
-use gitkit::git::kit::KitRepo;
+use gitkit_cli::git::kit::KitRepo;
 
 #[divan::bench]
 fn bench_get_all_commits() {

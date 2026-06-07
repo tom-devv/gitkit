@@ -1,5 +1,5 @@
 [package]
-name = "gitkit"
+name = "gitkit-cli"
 version = "0.1.0"
 edition = "2024"
 description = "Get insightful metrics on your git repository"
@@ -7,6 +7,10 @@ license = "MIT"
 readme = "README.md"
 authors = ["tom-devv"]
 repository = "https://github.com/tom-devv/gitkit"
+
+[[bin]]
+name = "gitkit"
+path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4.44"
