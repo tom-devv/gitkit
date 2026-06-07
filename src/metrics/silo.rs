@@ -1,19 +1,17 @@
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use git2::TraceLevel::Info;
 use git2::{Patch, TreeWalkMode, TreeWalkResult};
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
-use ratatui::style::Color::{self, Gray};
-use ratatui::style::palette::material::{GRAY, WHITE};
+use ratatui::style::Color::{self};
+use ratatui::style::palette::material::WHITE;
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, Borders, LineGauge, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
-    Table, TableState,
+    Block, Borders, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
+    TableState,
 };
-use ratatui::{Frame, symbols};
 
 use crate::error::Result;
 use crate::tui::ACCENT;
@@ -72,7 +70,7 @@ impl SiloData {
         let mut churn_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
 
         for (commit, diff) in repo.iter_diff_history()? {
-            let author_name = commit.author().name().unwrap_or("Unknown").to_string();
+            let author_name = commit.email;
 
             for i in 0..diff.deltas().len() {
                 if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {

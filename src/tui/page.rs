@@ -1,5 +1,4 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use git2::Commit;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
@@ -9,8 +8,8 @@ use ratatui::{
 };
 
 use crate::{
-    git::{kit::KitRepo, status::KitStatus, util},
-    tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable, state::TuiState},
+    git::{kit::KitRepo, model::KitCommit, status::KitStatus, util},
+    tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -45,17 +44,17 @@ impl Page {
     }
 }
 
-pub struct HomeData<'repo> {
+pub struct HomeData {
     pub repo_name: String, // directory name
     pub current_branch: String,
     pub total_commits: u32,
     pub status: KitStatus,
-    pub first_commit: Option<Commit<'repo>>, // maybe remove this and store something else, lifetime is overkill
-    pub last_commit: Option<Commit<'repo>>,
+    pub first_commit: Option<KitCommit>,
+    pub last_commit: Option<KitCommit>,
 }
 
-impl<'repo> HomeData<'repo> {
-    pub fn new(repo: &'repo KitRepo) -> Self {
+impl HomeData {
+    pub fn new(repo: &KitRepo) -> Self {
         let workdir = repo.inner.workdir().unwrap_or_else(|| repo.inner.path());
 
         let repo_name = workdir
@@ -75,7 +74,7 @@ impl<'repo> HomeData<'repo> {
         let status = repo.get_status();
 
         // commit iter is reversed
-        let first_commit: Option<Commit<'_>> =
+        let first_commit: Option<KitCommit> =
             repo.iter_commits().map_or(None, |commits| commits.last());
 
         let last_commit = repo
@@ -93,16 +92,16 @@ impl<'repo> HomeData<'repo> {
     }
 }
 
-pub struct HomePage<'repo> {
-    data: HomeData<'repo>,
+pub struct HomePage {
+    data: HomeData,
 }
 
-impl<'repo> HomePage<'repo> {
-    pub fn new(data: HomeData<'repo>) -> Self {
+impl HomePage {
+    pub fn new(data: HomeData) -> Self {
         HomePage { data }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo, refresh: &mut bool) {
+    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo, refresh: &mut bool) {
         match key_event.code {
             KeyCode::Char('r') => *refresh = true,
             _ => {}
@@ -166,7 +165,7 @@ impl<'repo> HomePage<'repo> {
     }
 }
 
-impl<'repo> Renderable for HomePage<'repo> {
+impl<'repo> Renderable for HomePage {
     fn render(&mut self, frame: &mut ratatui::prelude::Frame, area: ratatui::prelude::Rect) {
         let header_height = GITKIT_ASCII.lines().count() as u16;
 

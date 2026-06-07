@@ -1,4 +1,3 @@
-
 use chrono::{DateTime, Utc};
 use git2::Commit;
 use ratatui::{
@@ -6,7 +5,10 @@ use ratatui::{
     text::Line,
 };
 
-use crate::tui::{ACCENT, ACCENT_TEXT};
+use crate::{
+    git::model::KitCommit,
+    tui::{ACCENT, ACCENT_TEXT},
+};
 
 const NOT_FOUND: &str = "not found";
 
@@ -14,13 +16,9 @@ pub fn not_found() -> Line<'static> {
     Line::from(NOT_FOUND.to_owned().fg(ACCENT_TEXT))
 }
 
-pub fn commit_to_date(commit: &Commit) -> Option<DateTime<Utc>> {
-    DateTime::from_timestamp_secs(commit.time().seconds())
-}
-
-pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
+pub fn active_since(commit: &Option<KitCommit>) -> Line<'static> {
     if let Some(c) = commit {
-        if let Some(commit_date) = commit_to_date(c) {
+        if let Some(commit_date) = c.date {
             let now = Utc::now();
             let readable_date = commit_date.format("%Y/%m/%d").to_string();
 
@@ -39,15 +37,12 @@ pub fn active_since(commit: &Option<Commit>) -> Line<'static> {
     }
 }
 
-pub fn last_activity(commit: &Option<Commit>) -> Line<'static> {
+pub fn last_activity(commit: &Option<KitCommit>) -> Line<'static> {
     if let Some(c) = commit {
-        if let Some(commit_date) = commit_to_date(c) {
-            let mut hash = c.id().to_string();
+        if let Some(commit_date) = c.date {
+            let mut hash = c.id.clone();
             hash.truncate(7);
-            let author = c
-                .author()
-                .email()
-                .map_or("no author".to_owned(), |a| a.to_owned());
+            let author = c.email.clone();
 
             let now = Utc::now();
 
