@@ -3,15 +3,14 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{io, panic, sync::mpsc, thread, time::Duration};
+use std::{io, panic, time::Duration};
 
 use ratatui::{Terminal, backend::CrosstermBackend};
 
 use crate::{
     error::Result,
     git::kit::KitRepo,
-    metrics::{cadence::CadenceData, silo::SiloData},
-    tui::{page::HomeData, state::TuiState, ui::render},
+    tui::{state::TuiState, ui::render},
     worker::Worker,
 };
 

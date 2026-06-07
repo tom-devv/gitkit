@@ -1,5 +1,4 @@
-use chrono::{DateTime, Utc};
-use git2::Commit;
+use chrono::Utc;
 use ratatui::{
     style::{Stylize, palette::material::WHITE},
     text::Line,

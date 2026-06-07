@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::Path};
 
 use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
 
-use crate::git::{self, contributions::Contribution, model::KitCommit, status::KitStatus};
+use crate::git::{model::KitCommit, status::KitStatus};
 
 pub struct KitRepo {
     pub inner: Repository,
