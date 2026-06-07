@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
@@ -106,6 +106,10 @@ impl HomePage {
             KeyCode::Char('r') => *refresh = true,
             _ => {}
         }
+    }
+
+    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
+        println!("{:?}", mouse_event)
     }
 
     // TODO make this scrollable
