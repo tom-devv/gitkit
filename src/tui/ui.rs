@@ -5,12 +5,29 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Padding, Tabs, TitlePosition},
+    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Tabs, TitlePosition},
 };
 
 use crate::tui::{ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, page::Page, state::TuiState};
 
+fn loading(frame: &mut Frame) {
+    let loading_block = Block::bordered();
+
+    let loading_span = vec!["Reloading data...".into()];
+
+    frame.render_widget(Clear, frame.area());
+    frame.render_widget(
+        Paragraph::new(loading_span).block(loading_block),
+        frame.area(),
+    );
+}
+
 pub fn render(frame: &mut Frame, state: &mut TuiState) {
+    if state.loading {
+        loading(frame);
+        return;
+    }
+
     let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]) // 3 chars is enough to render the nav text
         .margin(2)
         .split(frame.area());

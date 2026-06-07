@@ -2,7 +2,7 @@ use std::{collections::HashSet, path::Path};
 
 use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
 
-use crate::git::status::KitStatus;
+use crate::git::{self, status::KitStatus};
 
 pub struct KitRepo {
     pub inner: Repository,
@@ -12,6 +12,33 @@ impl KitRepo {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<KitRepo, Error> {
         let repo = Repository::open(path)?;
         Ok(KitRepo { inner: repo })
+    }
+
+    pub fn change_branch(&self, branch_name: &str) -> Result<(), git2::Error> {
+        let branch = self
+            .inner
+            .find_branch(branch_name, git2::BranchType::Local)?;
+        let reference = branch.get();
+
+        let obj = reference.peel_to_commit()?;
+        self.inner.set_head(reference.name().unwrap())?;
+
+        self.inner.checkout_tree(obj.as_object(), None)?;
+
+        Ok(())
+    }
+
+    pub fn list_branch(&self) -> Result<(), git2::Error> {
+        let branches = self.inner.branches(Some(git2::BranchType::Local))?;
+        branches.filter_map(|x| x.ok()).for_each(|y| {
+            let name =
+                y.0.name()
+                    .unwrap_or(Some("No name found"))
+                    .unwrap_or_default();
+
+            println!("{}", name);
+        });
+        Ok(())
     }
 
     // use iter_commits unless Vec<Commit> is needed
@@ -98,16 +125,47 @@ impl KitRepo {
         self.get_diff(parent_commit.as_ref(), Some(commit), opts)
     }
 
-    pub fn iter_all_diffs(
-        &self,
-        mut opts: Option<&mut DiffOptions>,
-    ) -> Result<impl Iterator<Item = (Commit<'_>, Diff<'_>)>, git2::Error> {
-        let diffs = self.iter_commits()?.filter_map(move |commit| {
-            self.get_parent_diff(&commit, opts.as_deref_mut())
-                .ok()
-                .map(|diff| (commit, diff))
+    // get all diffs exlcuding merge commits
+    pub fn iter_diff_history<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = (Commit<'a>, Diff<'a>)> + 'a, git2::Error> {
+        let mut revwalk = self.inner.revwalk()?;
+        revwalk.push_head()?;
+
+        let repo = &self.inner;
+
+        let diff_iter = revwalk.filter_map(move |oid_result| {
+            let oid = oid_result.ok()?;
+            let commit = repo.find_commit(oid).ok()?;
+
+            // Skip merge commits
+            if commit.parent_count() > 1 {
+                return None;
+            }
+
+            let commit_tree = commit.tree().ok()?;
+
+            let parent_tree = if commit.parent_count() == 1 {
+                commit.parent(0).ok()?.tree().ok()
+            } else {
+                None
+            };
+
+            let mut diff_options = DiffOptions::new();
+            diff_options.ignore_whitespace(true);
+
+            let diff = repo
+                .diff_tree_to_tree(
+                    parent_tree.as_ref(),
+                    Some(&commit_tree),
+                    Some(&mut diff_options),
+                )
+                .ok()?;
+
+            Some((commit, diff))
         });
-        Ok(diffs)
+
+        Ok(diff_iter)
     }
 
     pub fn current_branch(&self) -> Result<String, git2::Error> {

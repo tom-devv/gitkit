@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use git2::Commit;
 use ratatui::{
     Frame,
@@ -9,7 +10,7 @@ use ratatui::{
 
 use crate::{
     git::{kit::KitRepo, status::KitStatus, util},
-    tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable},
+    tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable, state::TuiState},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -100,6 +101,14 @@ impl<'repo> HomePage<'repo> {
     pub fn new(data: HomeData<'repo>) -> Self {
         HomePage { data }
     }
+
+    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo, refresh: &mut bool) {
+        match key_event.code {
+            KeyCode::Char('r') => *refresh = true,
+            _ => {}
+        }
+    }
+
     // TODO make this scrollable
     fn info_box(&self, frame: &mut Frame, area: Rect) {
         let title = Line::from(vec![

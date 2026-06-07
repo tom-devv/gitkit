@@ -3,7 +3,6 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use git2::Binding;
 use std::{io, panic, time::Duration};
 
 use ratatui::{Terminal, backend::CrosstermBackend};
@@ -11,7 +10,6 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use crate::{
     error::Result,
     git::kit::KitRepo,
-    metrics::silo::SiloData,
     tui::{state::TuiState, ui::render},
 };
 
@@ -35,7 +33,8 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
-        let churn = SiloData::get_churn(&repo)?;
+        let x = repo.list_branch();
+        // println!("{:?}", x.len());
 
         return Ok(());
     }
@@ -66,13 +65,17 @@ pub fn run(args: GKitArgs) -> Result<()> {
     tui_result // returns once drawing stops
 }
 
-pub fn tui(
+pub fn tui<'a>(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    state: &mut TuiState,
-    repo: &KitRepo,
+    state: &mut TuiState<'a>,
+    repo: &'a KitRepo,
 ) -> Result<()> {
     while !state.is_quit {
         terminal.draw(|frame| render(frame, state))?;
+
+        if state.refresh {
+            state.refresh(repo);
+        }
 
         if event::poll(Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {

@@ -10,6 +10,7 @@ use crate::tui::page::{HomeData, HomePage, Page};
 pub struct TuiState<'repo> {
     pub is_quit: bool,
     pub loading: bool,
+    pub refresh: bool,
     pub active_page: Page,
     pub home: HomePage<'repo>,
     pub cadence: CadencePage,
@@ -24,6 +25,7 @@ impl<'repo> TuiState<'repo> {
         Ok(TuiState {
             is_quit: false,
             loading: false,
+            refresh: false,
             active_page: Page::default(),
             home: HomePage::new(home_data),
             cadence: CadencePage::new(cadence_data),
@@ -31,6 +33,14 @@ impl<'repo> TuiState<'repo> {
         })
     }
 
+    pub fn refresh(&mut self, repo: &'repo KitRepo) {
+        if let Ok(new) = Self::new(repo) {
+            *self = new;
+
+            self.loading = false;
+            self.refresh = false;
+        }
+    }
     pub fn next_tab(&mut self) {
         self.active_page = self.active_page.next();
     }
@@ -39,11 +49,10 @@ impl<'repo> TuiState<'repo> {
         match key.code {
             KeyCode::Char('q') => self.is_quit = true, // todo add ctrl + c as quit
             KeyCode::Tab => self.next_tab(),
-
             _ => match self.active_page {
                 Page::Cadence => self.cadence.handle_key(key, repo),
                 Page::Silo => self.silo.handle_key(key, repo),
-                Page::Home => {}
+                Page::Home => self.home.handle_key(key, repo, &mut self.refresh),
             },
         }
     }
@@ -62,7 +71,13 @@ impl<'repo> TuiState<'repo> {
                 ]
             }
             Page::Silo => {
-                vec![("Tab", "Next"), ("(k,⇧)/(j,⇩)", "up/down"), ("q", "quit")]
+                vec![
+                    ("Tab", "Next"),
+                    ("(k,⇧)/(j,⇩)", "up/down"),
+                    ("(SHIFT + k)/(shift + j)", "5 (up/down)"),
+                    ("g/G", "top/bottom"),
+                    ("q", "quit"),
+                ]
             }
         }
     }

@@ -1,14 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crossterm::event::{KeyCode, KeyEvent};
-use git2::Patch;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use git2::TraceLevel::Info;
+use git2::{Patch, TreeWalkMode, TreeWalkResult};
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
-use ratatui::style::Color::Gray;
+use ratatui::style::Color::{self, Gray};
 use ratatui::style::palette::material::{GRAY, WHITE};
-use ratatui::style::{Style, Stylize};
+use ratatui::style::{Modifier, Style, Stylize};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, LineGauge, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, TableState,
+    Block, Borders, LineGauge, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    Table, TableState,
 };
 use ratatui::{Frame, symbols};
 
@@ -37,70 +40,107 @@ impl SiloData {
     }
 
     pub fn get_churn(repo: &KitRepo) -> Result<Self> {
-        let raw_churn = repo.iter_all_diffs(None)?.fold(
-            HashMap::new(),
-            |mut acc_map: HashMap<String, HashMap<String, usize>>, (commit, diff)| {
-                let author_name = commit.author().name().unwrap_or("Unknown").to_string();
+        let head_files = Self::get_head_files(repo)?;
 
-                // TODO calculate all deltas in parallel
-                for i in 0..diff.deltas().len() / 10 {
-                    if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {
-                        let delta = patch.delta();
-                        if let Some(path) = delta.new_file().path() {
-                            let file_path = path.to_string_lossy().to_string();
+        let raw_churn_map = Self::accumulate_churn(repo)?;
 
-                            if let Ok((insertions, deletions, _)) = patch.line_stats() {
-                                let file_churn = insertions + deletions;
+        let active_files = Self::process_silos(raw_churn_map, &head_files);
 
-                                *acc_map
+        Ok(Self {
+            files: active_files,
+        })
+    }
+
+    pub fn get_head_files(repo: &KitRepo) -> Result<HashSet<String>> {
+        let mut current_files = HashSet::new();
+        let head = repo.inner.head()?;
+        let head_tree = head.peel_to_tree()?;
+
+        head_tree.walk(TreeWalkMode::PreOrder, |root, entry| {
+            if entry.kind() == Some(git2::ObjectType::Blob) {
+                if let Some(name) = entry.name().ok() {
+                    current_files.insert(format!("{}{}", root, name));
+                }
+            }
+            TreeWalkResult::Ok
+        })?;
+
+        Ok(current_files)
+    }
+
+    pub fn accumulate_churn(repo: &KitRepo) -> Result<HashMap<String, HashMap<String, usize>>> {
+        let mut churn_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+
+        for (commit, diff) in repo.iter_diff_history()? {
+            let author_name = commit.author().name().unwrap_or("Unknown").to_string();
+
+            for i in 0..diff.deltas().len() {
+                if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {
+                    if let Some(path) = patch.delta().new_file().path() {
+                        let file_path = path.to_string_lossy().to_string();
+
+                        if let Ok((insertions, deletions, _)) = patch.line_stats() {
+                            let churn = insertions + deletions;
+
+                            if churn > 0 {
+                                *churn_map
                                     .entry(file_path)
                                     .or_default()
                                     .entry(author_name.clone())
-                                    .or_default() += file_churn;
+                                    .or_default() += churn;
                             }
                         }
                     }
                 }
-                acc_map
-            },
-        );
+            }
+        }
 
-        let head_tree = repo.inner.head()?.peel_to_tree()?;
-        let mut files: Vec<FileSilo> = raw_churn
-            .into_iter()
-            .filter_map(|(file, author_churn)| {
-                if head_tree.get_path(Path::new(&file)).is_err() {
-                    return None;
+        Ok(churn_map)
+    }
+
+    pub fn process_silos(
+        churn_map: HashMap<String, HashMap<String, usize>>,
+        head_files: &HashSet<String>,
+    ) -> Vec<FileSilo> {
+        let mut active_files = Vec::new();
+
+        for (file, author_churn) in churn_map {
+            if !head_files.contains(&file) {
+                continue;
+            }
+
+            let total_churn: usize = author_churn.values().sum();
+            let contributors = author_churn.len() as u16;
+
+            let mut gatekeeper = String::from("Unknown");
+            let mut top_churn = 0;
+
+            for (author, churn) in &author_churn {
+                if *churn > top_churn {
+                    top_churn = *churn;
+                    gatekeeper = author.clone();
                 }
+            }
 
-                let total_churn: usize = author_churn.values().sum();
-                let contributors = author_churn.len() as u16;
+            let risk = if total_churn > 0 {
+                ((top_churn as f64 / total_churn as f64) * 100.0).round() as u8
+            } else {
+                0
+            };
 
-                let (gatekeeper, top_churn) = author_churn
-                    .iter()
-                    .max_by_key(|&(_, &churn)| churn)
-                    .map(|(author, &churn)| (author.clone(), churn))
-                    .unwrap_or_else(|| ("Unknown".to_string(), 0));
+            active_files.push(FileSilo {
+                file,
+                gatekeeper,
+                contributors,
+                risk,
+                total_churn,
+                author_churn,
+            });
+        }
 
-                let risk = if total_churn > 0 {
-                    ((top_churn as f64 / total_churn as f64) * 100.0).round() as u8
-                } else {
-                    0
-                };
+        active_files.sort_by(|a, b| b.risk.cmp(&a.risk).then(b.total_churn.cmp(&a.total_churn)));
 
-                Some(FileSilo {
-                    file,
-                    gatekeeper,
-                    contributors,
-                    risk,
-                    total_churn,
-                    author_churn,
-                })
-            })
-            .collect();
-        files.sort_by(|a, b| b.risk.cmp(&a.risk).then(b.total_churn.cmp(&a.total_churn)));
-
-        Ok(Self { files })
+        active_files
     }
 }
 
@@ -139,31 +179,57 @@ impl SiloPage {
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
-        match key_event.code {
-            KeyCode::Down | KeyCode::Char('j') => self.next(),
-            KeyCode::Up | KeyCode::Char('k') => self.prev(),
-            _ => {}
-        };
-    }
+        match (key_event.code, key_event.modifiers) {
+            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => self.next(1),
+            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => self.prev(1),
 
-    pub fn next(&mut self) {
-        if !self.data.files.is_empty() {
-            self.selected_index = (self.selected_index + 1) % self.data.files.len();
-            self.table_state.select(Some(self.selected_index));
-            self.scroll_state = self.scroll_state.position(self.selected_index);
+            (KeyCode::Char('g'), KeyModifiers::NONE) => self.top(),
+            // G (with caps lock) or G (with shift)
+            (KeyCode::Char('G'), _) | (KeyCode::Char('g'), KeyModifiers::SHIFT) => self.bottom(),
+
+            // shift + j/k = 5 skips
+            (KeyCode::Char('J'), _) | (KeyCode::Char('j'), KeyModifiers::SHIFT) => self.next(5),
+            (KeyCode::Char('K'), _) | (KeyCode::Char('k'), KeyModifiers::SHIFT) => self.prev(5),
+            _ => {}
         }
     }
 
-    pub fn prev(&mut self) {
+    fn select_index(&mut self, index: usize) {
+        self.table_state.select(Some(self.selected_index));
+        self.scroll_state = self.scroll_state.position(self.selected_index);
+    }
+
+    pub fn top(&mut self) {
         if !self.data.files.is_empty() {
-            if self.selected_index == 0 {
-                self.selected_index = self.data.files.len() - 1;
+            self.selected_index = 0;
+            self.select_index(self.selected_index);
+        }
+    }
+
+    pub fn bottom(&mut self) {
+        if !self.data.files.is_empty() {
+            self.selected_index = self.data.files.len() - 1;
+            self.select_index(self.selected_index);
+        }
+    }
+
+    pub fn next(&mut self, skip: usize) {
+        if !self.data.files.is_empty() {
+            self.selected_index = (self.selected_index + skip) % self.data.files.len();
+            self.select_index(self.selected_index);
+        }
+    }
+
+    pub fn prev(&mut self, skip: usize) {
+        if !self.data.files.is_empty() {
+            let len = self.data.files.len();
+            if self.selected_index < skip {
+                self.selected_index = (len + self.selected_index - (skip % len)) % len;
             } else {
-                self.selected_index -= 1;
+                self.selected_index -= skip;
             }
 
-            self.table_state.select(Some(self.selected_index));
-            self.scroll_state = self.scroll_state.position(self.selected_index);
+            self.select_index(self.selected_index);
         }
     }
 
@@ -189,7 +255,7 @@ impl SiloPage {
             .iter()
             .map(|churn| {
                 let ratio = churn.risk as f64 / 100.0;
-                let bar = SiloPage::generate_silo_bar(ratio, 20); // TODO change fixed width 20
+                let bar = generate_silo_bar(ratio, 20); // TODO change fixed width 20
                 Row::new(vec![
                     format!("{}", churn.file).fg(WHITE),
                     format!("{}", churn.gatekeeper).fg(WHITE),
@@ -241,19 +307,54 @@ impl SiloPage {
     }
 
     pub fn render_foo(&self, frame: &mut Frame, area: Rect) {
-        if let Some(curr_churn) = self.data.files.get(self.selected_index) {
-            let block = Block::bordered().title(format!("{}", curr_churn.file));
-
-            frame.render_widget(block, area);
+        let silo = match self.data.files.get(self.selected_index) {
+            Some(silo) => silo,
+            None => return,
         };
-    }
 
-    pub fn generate_silo_bar(percentage: f64, width: usize) -> String {
-        let filled = ((percentage) * width as f64).round() as usize;
-        let empty = width.saturating_sub(filled);
+        let mut top_contributors: Vec<(&String, &usize)> = silo.author_churn.iter().collect();
+        top_contributors.sort_by(|a, b| b.1.cmp(a.1));
 
-        let filled_blocks = "█".repeat(filled);
-        let empty_blocks = "░".repeat(empty);
-        format!("[{}{}]", filled_blocks, empty_blocks)
+        let mut info_lines = vec![
+            Line::from(vec![
+                Span::styled("Total File Churn: ", Style::default().fg(Color::White)),
+                Span::styled(
+                    silo.total_churn.to_string(),
+                    Style::default().fg(Color::White),
+                ),
+                Span::raw(" lines"),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Top Contributors:",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
+        ];
+
+        for (author, churn) in top_contributors.iter().take(3) {
+            let percentage = (**churn as f64 / silo.total_churn as f64) * 100.0;
+            info_lines.push(Line::from(format!(
+                "  - {}: {} lines ({:.0}%)",
+                author, churn, percentage
+            )));
+        }
+
+        let info_paragraph = Paragraph::new(info_lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(silo.file.clone())
+                .style(Style::default().fg(Color::Gray)),
+        );
+
+        frame.render_widget(info_paragraph, area);
     }
+}
+
+fn generate_silo_bar(percentage: f64, width: usize) -> String {
+    let filled = ((percentage) * width as f64).round() as usize;
+    let empty = width.saturating_sub(filled);
+
+    let filled_blocks = "█".repeat(filled);
+    let empty_blocks = "░".repeat(empty);
+    format!("[{}{}]", filled_blocks, empty_blocks)
 }
