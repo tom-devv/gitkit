@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
 use crate::metrics::cadence::{CadenceData, CadencePage};
@@ -59,6 +59,14 @@ impl TuiState {
                 Page::Silo => self.silo.handle_key(key, repo),
                 Page::Home => self.home.handle_key(key, repo, &mut self.refresh),
             },
+        }
+    }
+
+    pub fn handle_mouse_event(&mut self, mouse: MouseEvent, repo: &KitRepo) {
+        match self.active_page {
+            Page::Home => self.home.handle_mouse(mouse),
+            Page::Cadence => {}
+            Page::Silo => {}
         }
     }
 
