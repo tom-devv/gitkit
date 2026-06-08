@@ -50,7 +50,7 @@ impl Worker {
     }
 
     // send refresh msg
-    pub fn trigger_refresh(&self) {
+    pub fn refresh(&self) {
         let _ = self.cmd_tx.send(WorkerCommand::Refresh);
     }
 
