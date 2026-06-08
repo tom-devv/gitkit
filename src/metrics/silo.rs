@@ -176,7 +176,7 @@ impl SiloPage {
         }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
+    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
         match (key_event.code, key_event.modifiers) {
             (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => self.next(1),
             (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => self.prev(1),
