@@ -108,9 +108,7 @@ impl HomePage {
         }
     }
 
-    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
-        println!("{:?}", mouse_event)
-    }
+    pub fn handle_mouse(&mut self, _mouse_event: MouseEvent) {}
 
     // TODO make this scrollable
     fn info_box(&self, frame: &mut Frame, area: Rect) {

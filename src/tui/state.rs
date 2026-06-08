@@ -6,11 +6,13 @@ use crate::metrics::cadence::{CadenceData, CadencePage};
 use crate::error::Result;
 use crate::metrics::silo::{SiloData, SiloPage};
 use crate::tui::page::{HomeData, HomePage, Page};
+use crate::tui::widget::LoadingState;
 use crate::worker::DataPayload;
 
 pub struct TuiState {
     pub is_quit: bool,
     pub loading: bool,
+    pub loading_state: LoadingState,
     pub refresh: bool,
     pub active_page: Page,
     pub home: HomePage,
@@ -30,6 +32,7 @@ impl TuiState {
         Ok(TuiState {
             is_quit: false,
             loading: false,
+            loading_state: LoadingState::new(),
             refresh: false,
             active_page: Page::default(),
             home: HomePage::new(data.home_data),
@@ -62,7 +65,7 @@ impl TuiState {
         }
     }
 
-    pub fn handle_mouse_event(&mut self, mouse: MouseEvent, repo: &KitRepo) {
+    pub fn handle_mouse_event(&mut self, mouse: MouseEvent, _repo: &KitRepo) {
         match self.active_page {
             Page::Home => self.home.handle_mouse(mouse),
             Page::Cadence => {}
