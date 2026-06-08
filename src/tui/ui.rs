@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, Tabs, TitlePosition},
+    widgets::{Block, BorderType, Borders, Padding, Tabs, TitlePosition},
 };
 
 use crate::tui::{

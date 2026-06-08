@@ -1,10 +1,10 @@
-use std::{ops::Deref, time::Instant};
+use std::time::Instant;
 
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    style::Style,
+    text::{Line, Text},
     widgets::{Paragraph, StatefulWidget, Widget},
 };
 
@@ -13,12 +13,14 @@ use crate::tui::GITKIT_ASCII;
 pub struct LoadingWidget {}
 
 pub struct LoadingState {
-    frame_counter: usize,
+    start_time: Instant,
 }
 
 impl LoadingState {
     pub fn new() -> Self {
-        Self { frame_counter: 0 }
+        Self {
+            start_time: Instant::now(),
+        }
     }
 }
 
@@ -33,10 +35,9 @@ impl StatefulWidget for LoadingWidget {
 
     // clean this up
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        state.frame_counter += 1;
+        let elapsed_millis = state.start_time.elapsed().as_millis();
 
-        let current_step = state.frame_counter / 15;
-
+        let current_step = (elapsed_millis / 300) as usize;
         let dot_count = current_step % 4;
 
         let dots = ".".repeat(dot_count);

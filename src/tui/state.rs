@@ -1,11 +1,11 @@
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
-use crate::metrics::cadence::{CadenceData, CadencePage};
+use crate::metrics::cadence::CadencePage;
 
 use crate::error::Result;
-use crate::metrics::silo::{SiloData, SiloPage};
-use crate::tui::page::{HomeData, HomePage, Page};
+use crate::metrics::silo::SiloPage;
+use crate::tui::page::{HomePage, Page};
 use crate::tui::widget::LoadingState;
 use crate::worker::DataPayload;
 
@@ -21,14 +21,7 @@ pub struct TuiState {
 }
 
 impl TuiState {
-    pub fn new(repo: &KitRepo) -> Result<TuiState> {
-        // putting in struct so i dont forget new pages from the payload struct
-        let data = DataPayload {
-            cadence_data: CadenceData::new(repo),
-            home_data: HomeData::new(repo),
-            silo_data: SiloData::new(repo),
-        };
-
+    pub fn new(data: DataPayload) -> Result<TuiState> {
         Ok(TuiState {
             is_quit: false,
             loading: false,
