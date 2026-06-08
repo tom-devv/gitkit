@@ -176,7 +176,7 @@ impl SiloPage {
         }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
+    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
         match (key_event.code, key_event.modifiers) {
             (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => self.next(1),
             (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => self.prev(1),
@@ -193,28 +193,26 @@ impl SiloPage {
     }
 
     fn select_index(&mut self, index: usize) {
+        self.selected_index = index;
         self.table_state.select(Some(self.selected_index));
         self.scroll_state = self.scroll_state.position(self.selected_index);
     }
 
     pub fn top(&mut self) {
         if !self.data.files.is_empty() {
-            self.selected_index = 0;
-            self.select_index(self.selected_index);
+            self.select_index(0);
         }
     }
 
     pub fn bottom(&mut self) {
         if !self.data.files.is_empty() {
-            self.selected_index = self.data.files.len() - 1;
-            self.select_index(self.selected_index);
+            self.select_index(self.data.files.len() - 1);
         }
     }
 
     pub fn next(&mut self, skip: usize) {
         if !self.data.files.is_empty() {
-            self.selected_index = (self.selected_index + skip) % self.data.files.len();
-            self.select_index(self.selected_index);
+            self.select_index((self.selected_index + skip) % self.data.files.len());
         }
     }
 
@@ -227,7 +225,7 @@ impl SiloPage {
                 self.selected_index -= skip;
             }
 
-            self.select_index(self.selected_index);
+            self.select_index(self.selected_index); // this is kinda wrong but it works
         }
     }
 

@@ -35,7 +35,7 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
-        let x = repo.list_branch();
+        let _x = repo.list_branch();
         // println!("{:?}", x.len());
 
         return Ok(());
@@ -91,10 +91,17 @@ pub fn tui<'a>(
         }
 
         if event::poll(Duration::from_millis(16))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    state.handle_key_event(key, repo);
+            match event::read()? {
+                Event::Key(key) => {
+                    if key.kind == KeyEventKind::Press {
+                        println!("pressed \n x");
+                        state.handle_key_event(key, repo);
+                    }
                 }
+                Event::Mouse(mouse) => {
+                    state.handle_mouse_event(mouse, repo);
+                }
+                _ => {}
             }
         }
     }

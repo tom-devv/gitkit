@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
@@ -107,6 +107,8 @@ impl HomePage {
             _ => {}
         }
     }
+
+    pub fn handle_mouse(&mut self, _mouse_event: MouseEvent) {}
 
     // TODO make this scrollable
     fn info_box(&self, frame: &mut Frame, area: Rect) {
