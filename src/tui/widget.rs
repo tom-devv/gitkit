@@ -40,8 +40,8 @@ impl StatefulWidget for LoadingWidget {
         let current_step = (elapsed_millis / 300) as usize;
         let dot_count = current_step % 4;
 
-        let dots = ".".repeat(dot_count);
-        let spaces = " ".repeat(3 - dot_count);
+        let dots = "■ ".repeat(dot_count);
+        let spaces = "  ".repeat(3 - dot_count);
 
         let mut text = Text::from(GITKIT_ASCII);
 
