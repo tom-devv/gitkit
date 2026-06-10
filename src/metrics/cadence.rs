@@ -19,7 +19,7 @@ use ratatui::{
 
 #[derive(Debug, Clone)]
 pub struct CadenceData {
-    pub global_commits_per_week: u32,
+    pub global_commits_per_week: f32,
     pub author_commits_per_week: Vec<AuthorCommits>,
 }
 
@@ -36,13 +36,13 @@ pub struct CadencePage {
 // remove this type
 pub struct AuthorCommits {
     pub name: String,
-    pub commits_per_week: u32,
+    pub commits_per_week: f32,
 }
 
 #[derive(Debug)]
 pub struct AuthorDetails {
     pub name: String, // TODO:  fix these props later
-    pub commits_per_week: u32,
+    pub commits_per_week: f32,
     pub first_commit: String,
     pub total_commits: u32,
     pub repo_share: f64,
@@ -160,13 +160,13 @@ impl CadencePage {
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
-        let mut authors: Vec<(&String, &u32)> = self
+        let mut authors: Vec<(&String, &f32)> = self
             .data
             .author_commits_per_week
             .iter()
             .map(|ac| (&ac.name, &ac.commits_per_week))
             .collect();
-        authors.sort_by(|a, b| a.1.cmp(b.1));
+        authors.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
 
         let chart_data: Vec<(&str, u64)> = authors
             .into_iter()
@@ -276,27 +276,27 @@ impl CadenceData {
         Ok(percentage)
     }
 
-    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<u32> {
+    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<f32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .get_author_commits(email)?
             .filter_map(|commit| commit.date)
             .collect();
 
-        Ok(commits_per_week(&commit_dates))
+        Ok(commits_per_week(&commit_dates, repo))
     }
 
-    pub fn global_commits_per_week(repo: &KitRepo) -> Result<u32> {
+    pub fn global_commits_per_week(repo: &KitRepo) -> Result<f32> {
         let commit_dates: Vec<DateTime<Utc>> = repo
             .iter_commits()?
             .filter_map(|commit| commit.date)
             .collect();
 
-        Ok(commits_per_week(&commit_dates))
+        Ok(commits_per_week(&commit_dates, repo))
     }
 
     pub fn new(repo: &KitRepo) -> Self {
         let mut cadence = CadenceData {
-            global_commits_per_week: Self::global_commits_per_week(repo).unwrap_or(0),
+            global_commits_per_week: Self::global_commits_per_week(repo).unwrap_or(0.0),
             author_commits_per_week: Vec::new(),
         };
         for author in repo.get_authors().unwrap_or_default() {
@@ -306,33 +306,39 @@ impl CadenceData {
 
                 cadence.author_commits_per_week.push(AuthorCommits {
                     name: author.clone(),
-                    commits_per_week: commits_per_week(&commit_dates),
+                    commits_per_week: commits_per_week(&commit_dates, repo),
                 });
             }
         }
         cadence
             .author_commits_per_week
-            .sort_by(|a, b| b.commits_per_week.cmp(&a.commits_per_week));
+            .sort_by(|a, b| b.commits_per_week.partial_cmp(&a.commits_per_week).unwrap());
         cadence
     }
 }
 
-fn commits_per_week(commits: &[DateTime<Utc>]) -> u32 {
-    match telescope_time(&commits) {
-        Some(delta) => {
-            let seconds_avg = delta.as_seconds_f32();
-            if seconds_avg > 0.0 {
-                ((1.0 / seconds_avg) * 60.0 * 60.0 * 24.0 * 7.0) as u32
-            } else {
-                0.0 as u32
-            }
+fn commits_per_week(commits: &[DateTime<Utc>], repo: &KitRepo) -> f32 {
+    let first_commit = repo.get_first_commit();
+    let last_commit = repo.get_last_commit();
+
+    if let (Ok(first), Ok(last)) = (first_commit, last_commit) {
+        if let (Some(start), Some(end)) = (first.date, last.date) {
+            let lifespan_seconds = (start - end).num_seconds() as f32;
+            let lifespan_weeks = (lifespan_seconds / (60.0 * 60.0 * 24.0 * 7.0)).max(1.0);
+
+            (commits.len() as f32 / lifespan_weeks) as f32
+        } else {
+            0.0
         }
-        None => 0.0 as u32,
+    } else {
+        0.0
     }
 }
 
 //https://en.wikipedia.org/wiki/Telescoping_series
-fn telescope_time(datetimes: &[DateTime<Utc>]) -> Option<TimeDelta> {
+// this is only useful to determine the avg time between commits
+// and will be heavily skewed for users with few commits
+fn _telescope_time(datetimes: &[DateTime<Utc>]) -> Option<TimeDelta> {
     if datetimes.len() < 2 {
         return None;
     }

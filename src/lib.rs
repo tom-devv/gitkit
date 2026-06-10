@@ -71,10 +71,10 @@ pub fn run(args: GKitArgs) -> Result<()> {
     tui_result // returns once drawing stops
 }
 
-pub fn tui<'a>(
+pub fn tui(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     // state: &mut TuiState,
-    repo: &'a KitRepo,
+    repo: &KitRepo,
 ) -> Result<()> {
     let repo_path = repo.inner.path().to_path_buf();
 
