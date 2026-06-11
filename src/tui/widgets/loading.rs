@@ -5,7 +5,9 @@ use ratatui::{
     layout::{Alignment, Rect},
     style::Style,
     text::{Line, Text},
-    widgets::{Paragraph, StatefulWidget, Widget},
+    widgets::{
+        Paragraph, StatefulWidget, Widget,
+    },
 };
 
 use crate::tui::GITKIT_ASCII;

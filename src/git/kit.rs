@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path};
 
-use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
+use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository};
 
 use crate::git::{model::KitCommit, status::KitStatus};
 

@@ -1,20 +1,18 @@
 use std::collections::{HashMap, HashSet};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyEvent, MouseEvent};
 use git2::{Patch, TreeWalkMode, TreeWalkResult};
 use ratatui::Frame;
-use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
+use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::Color::{self};
 use ratatui::style::palette::material::WHITE;
 use ratatui::style::{Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{
-    Block, Borders, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
-    TableState,
-};
+use ratatui::widgets::{Block, Borders, Paragraph, Row, Table};
 
 use crate::error::Result;
 use crate::tui::ACCENT;
+use crate::tui::widgets::scroll_table::{ScrollingTable, ScrollingTableState};
 use crate::{git::kit::KitRepo, tui::Renderable};
 
 #[derive(Default)]
@@ -71,6 +69,8 @@ impl SiloData {
 
         for (commit, diff) in repo.iter_diff_history()? {
             let author_name = commit.email;
+
+            // TODO ENSURE NO DIVISION HERE
 
             for i in 0..diff.deltas().len() {
                 if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {
@@ -143,10 +143,8 @@ impl SiloData {
 }
 
 pub struct SiloPage {
-    data: SiloData,
-    scroll_state: ScrollbarState,
-    table_state: TableState,
-    selected_index: usize,
+    pub data: SiloData,
+    pub scrolling_table_state: ScrollingTableState,
 }
 
 impl Renderable for SiloPage {
@@ -165,83 +163,19 @@ impl Renderable for SiloPage {
 
 impl SiloPage {
     pub fn new(data: SiloData) -> Self {
-        let churn_size = &data.files.len();
-        let scroll_state = ScrollbarState::new(churn_size.clone()).position(0);
-        let table_state = TableState::default().with_selected(0);
+        let data_len = data.files.len();
         Self {
             data,
-            scroll_state,
-            table_state,
-            selected_index: 0,
+            scrolling_table_state: ScrollingTableState::new(data_len),
         }
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
-        match (key_event.code, key_event.modifiers) {
-            (KeyCode::Down, _) | (KeyCode::Char('j'), KeyModifiers::NONE) => self.next(1),
-            (KeyCode::Up, _) | (KeyCode::Char('k'), KeyModifiers::NONE) => self.prev(1),
-
-            (KeyCode::Char('g'), KeyModifiers::NONE) => self.top(),
-            // G (with caps lock) or G (with shift)
-            (KeyCode::Char('G'), _) | (KeyCode::Char('g'), KeyModifiers::SHIFT) => self.bottom(),
-
-            // shift + j/k = 5 skips
-            (KeyCode::Char('J'), _) | (KeyCode::Char('j'), KeyModifiers::SHIFT) => self.next(5),
-            (KeyCode::Char('K'), _) | (KeyCode::Char('k'), KeyModifiers::SHIFT) => self.prev(5),
-            _ => {}
-        }
+        self.scrolling_table_state.handle_scroll(&key_event);
     }
 
-    fn select_index(&mut self, index: usize) {
-        self.selected_index = index;
-        self.table_state.select(Some(self.selected_index));
-        self.scroll_state = self.scroll_state.position(self.selected_index);
-    }
-
-    pub fn top(&mut self) {
-        if !self.data.files.is_empty() {
-            self.select_index(0);
-        }
-    }
-
-    pub fn bottom(&mut self) {
-        if !self.data.files.is_empty() {
-            self.select_index(self.data.files.len() - 1);
-        }
-    }
-
-    pub fn next(&mut self, skip: usize) {
-        if !self.data.files.is_empty() {
-            self.select_index((self.selected_index + skip) % self.data.files.len());
-        }
-    }
-
-    pub fn prev(&mut self, skip: usize) {
-        if !self.data.files.is_empty() {
-            let len = self.data.files.len();
-            if self.selected_index < skip {
-                self.selected_index = (len + self.selected_index - (skip % len)) % len;
-            } else {
-                self.selected_index -= skip;
-            }
-
-            self.select_index(self.selected_index); // this is kinda wrong but it works
-        }
-    }
-
-    pub fn render_scrollbar(&mut self, frame: &mut Frame, area: Rect) {
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-        self.scroll_state = self
-            .scroll_state
-            .viewport_content_length(area.height as usize);
-        frame.render_stateful_widget(
-            scrollbar,
-            area.inner(Margin {
-                vertical: 1,
-                horizontal: 0,
-            }),
-            &mut self.scroll_state.position(self.selected_index),
-        );
+    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
+        self.scrolling_table_state.handle_mouse(&mouse_event);
     }
 
     pub fn render_churn_table(&mut self, frame: &mut Frame, area: Rect) {
@@ -282,9 +216,11 @@ impl SiloPage {
             .row_highlight_style(ACCENT)
             .highlight_symbol("> ");
 
-        frame.render_stateful_widget(table, area, &mut self.table_state);
-
-        self.render_scrollbar(frame, area);
+        frame.render_stateful_widget(
+            ScrollingTable::new(table),
+            area,
+            &mut self.scrolling_table_state,
+        );
     }
 
     pub fn render_churn_info(&self, frame: &mut Frame, area: Rect) {
@@ -303,7 +239,11 @@ impl SiloPage {
     }
 
     pub fn render_foo(&self, frame: &mut Frame, area: Rect) {
-        let silo = match self.data.files.get(self.selected_index) {
+        let silo = match self
+            .data
+            .files
+            .get(self.scrolling_table_state.selected_index)
+        {
             Some(silo) => silo,
             None => return,
         };

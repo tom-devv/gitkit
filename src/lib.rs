@@ -13,7 +13,7 @@ use crate::{
     tui::{
         state::TuiState,
         ui::render,
-        widget::{LoadingState, LoadingWidget},
+        widgets::loading::{LoadingState, LoadingWidget},
     },
     worker::{DataPayload, Worker},
 };
@@ -40,11 +40,9 @@ pub fn run(args: GKitArgs) -> Result<()> {
     if args.debug {
         println!("Debug Mode\n");
         let _x = repo.list_branch();
-        // println!("{:?}", x.len());
 
         return Ok(());
     }
-    // let mut state = TuiState::new(&repo)?; // blocking
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;

@@ -3,7 +3,7 @@ use ratatui::style::Color;
 pub mod page;
 pub mod state;
 pub mod ui;
-pub mod widget;
+pub mod widgets;
 
 pub const GRAY_BORDER_COLOR: ratatui::prelude::Color = Color::Rgb(105, 103, 97);
 pub const PRIMARY: ratatui::prelude::Color = Color::White;

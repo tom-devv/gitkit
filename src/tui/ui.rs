@@ -10,7 +10,7 @@ use ratatui::{
 
 use crate::tui::{
     ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, page::Page, state::TuiState,
-    widget::LoadingWidget,
+    widgets::loading::LoadingWidget,
 };
 
 pub fn render(frame: &mut Frame, state: &mut TuiState) {

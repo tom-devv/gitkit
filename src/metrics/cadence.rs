@@ -1,9 +1,11 @@
 use chrono::{DateTime, TimeDelta, Utc};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use ratatui::style::Stylize;
 
 use crate::git::kit::KitRepo;
 use crate::git::model::KitCommit;
 use crate::tui::Renderable;
+use crate::tui::widgets::scroll_table::{ScrollingTable, ScrollingTableState};
 use crate::{error::Result, tui::ACCENT};
 
 use ratatui::{
@@ -11,10 +13,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{
-        BarChart, Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table,
-        TableState,
-    },
+    widgets::{BarChart, Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table},
 };
 
 #[derive(Debug, Clone)]
@@ -26,9 +25,8 @@ pub struct CadenceData {
 #[derive(Debug)]
 pub struct CadencePage {
     pub data: CadenceData,
-    pub selected_index: usize,
+    pub scrolling_table_state: ScrollingTableState,
     pub selected_author: Option<AuthorDetails>,
-    pub table_state: TableState,
 }
 
 #[derive(Debug, Clone)]
@@ -63,10 +61,12 @@ impl Renderable for CadencePage {
         let main_columns = Layout::horizontal([left_constraint, middle_spacer, right_constraint])
             .split(inner_area);
 
-        let left_column = main_columns[0];
+        let left_column =
+            Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(main_columns[0]);
         let right_column = main_columns[2];
 
-        self.author_table(frame, left_column);
+        self.author_table(frame, left_column[0]);
         self.chart(frame, right_column);
 
         // show more info frame last, this will draw it on top
@@ -78,42 +78,25 @@ impl Renderable for CadencePage {
 
 impl CadencePage {
     pub fn new(data: CadenceData) -> Self {
+        let data_len = data.author_commits_per_week.len();
         Self {
             data,
-            selected_index: 0,
             selected_author: None,
-            table_state: TableState::default().with_selected(Some(0)),
+            scrolling_table_state: ScrollingTableState::new(data_len),
         }
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
+        self.scrolling_table_state.handle_scroll(&key_event);
         match key_event.code {
-            KeyCode::Down | KeyCode::Char('j') => self.next_index(),
-            KeyCode::Up | KeyCode::Char('k') => self.previous_index(),
             KeyCode::Enter => self.select(repo),
             KeyCode::Esc | KeyCode::Backspace => self.unselect(),
             _ => {}
         };
     }
 
-    pub fn next_index(&mut self) {
-        if !self.data.author_commits_per_week.is_empty() {
-            self.selected_index =
-                (self.selected_index + 1) % self.data.author_commits_per_week.len();
-            self.table_state.select(Some(self.selected_index));
-        }
-    }
-
-    pub fn previous_index(&mut self) {
-        if !self.data.author_commits_per_week.is_empty() {
-            if self.selected_index == 0 {
-                self.selected_index = self.data.author_commits_per_week.len() - 1;
-            } else {
-                self.selected_index -= 1;
-            }
-
-            self.table_state.select(Some(self.selected_index));
-        }
+    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
+        self.scrolling_table_state.handle_mouse(&mouse_event);
     }
 
     // used to unselect (e.g using Esc)
@@ -130,7 +113,7 @@ impl CadencePage {
         let AuthorCommits {
             name,
             commits_per_week,
-        } = self.data.author_commits_per_week[self.selected_index].clone();
+        } = self.data.author_commits_per_week[self.scrolling_table_state.selected_index].clone();
 
         let first_commit = CadenceData::author_first_commit(repo, &name)
             .ok()
@@ -207,11 +190,16 @@ impl CadencePage {
             .collect();
 
         let table = Table::new(rows, widths)
+            .header(Row::new(vec!["EMAIL".bold(), "CADENCE".bold()]))
             .block(Block::default().title(" Authors ").borders(Borders::ALL))
             .row_highlight_style(ACCENT)
             .highlight_symbol("> ");
 
-        frame.render_stateful_widget(table, area, &mut self.table_state);
+        frame.render_stateful_widget(
+            ScrollingTable::new(table),
+            area,
+            &mut self.scrolling_table_state,
+        );
     }
 
     pub fn more_info(&self, frame: &mut Frame, details: &AuthorDetails) {
