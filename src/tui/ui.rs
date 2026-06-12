@@ -9,7 +9,7 @@ use ratatui::{
 };
 
 use crate::tui::{
-    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, page::Page, state::TuiState,
+    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, pages::Page, state::TuiState,
     widgets::loading::LoadingWidget,
 };
 

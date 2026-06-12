@@ -1,11 +1,13 @@
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
-use crate::metrics::cadence::CadencePage;
 
 use crate::error::Result;
-use crate::metrics::silo::SiloPage;
-use crate::tui::page::{HomePage, Page};
+
+use crate::tui::pages::Page;
+use crate::tui::pages::cadence::CadencePage;
+use crate::tui::pages::home::HomePage;
+use crate::tui::pages::silo::SiloPage;
 use crate::tui::widgets::loading::LoadingState;
 use crate::worker::DataPayload;
 

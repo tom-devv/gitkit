@@ -1,6 +1,6 @@
 use ratatui::style::Color;
 
-pub mod page;
+pub mod pages;
 pub mod state;
 pub mod ui;
 pub mod widgets;
