@@ -1,15 +1,18 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{BarChart, Block, BorderType, Borders, Cell, Clear, Padding, Paragraph, Row, Table},
+    widgets::{
+        BarChart, Block, Borders, Cell, Clear, Padding, Paragraph,
+        Row, Table,
+    },
 };
 
 use crate::{
     git::kit::KitRepo,
-    metrics::cadence::{AuthorDetails, CadenceData},
+    git::metrics::cadence::CadenceData,
     tui::{
         ACCENT, Renderable,
         widgets::scroll_table::{ScrollingTable, ScrollingTableState},
@@ -20,7 +23,6 @@ use crate::{
 pub struct CadencePage {
     pub data: CadenceData,
     pub scrolling_table_state: ScrollingTableState,
-    pub selected_author: Option<AuthorDetails>,
 }
 
 impl Renderable for CadencePage {
@@ -56,39 +58,8 @@ impl CadencePage {
         let data_len = data.author_details.len();
         Self {
             data,
-            selected_author: None,
             scrolling_table_state: ScrollingTableState::new(data_len),
         }
-    }
-
-    pub fn handle_key(&mut self, key_event: KeyEvent, repo: &KitRepo) {
-        self.scrolling_table_state.handle_scroll(&key_event);
-        match key_event.code {
-            KeyCode::Enter => self.select(repo),
-            KeyCode::Esc | KeyCode::Backspace => self.unselect(),
-            _ => {}
-        };
-    }
-
-    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
-        self.scrolling_table_state.handle_mouse(&mouse_event);
-    }
-
-    // used to unselect (e.g using Esc)
-    pub fn unselect(&mut self) {
-        self.selected_author = None;
-    }
-
-    // select author from commit list and fetch data for the more_info() window
-    pub fn select(&mut self, repo: &KitRepo) {
-        if self.selected_author.take().is_some() {
-            return;
-        }
-        self.selected_author = self
-            .data
-            .author_details
-            .get(self.scrolling_table_state.selected_index)
-            .cloned(); // todo fix this
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
@@ -152,17 +123,19 @@ impl CadencePage {
     }
 
     pub fn more_info(&self, frame: &mut Frame, area: Rect) {
-        let Some(details) = &self.selected_author else {
-            return;
+        let details = match self
+            .data
+            .author_details
+            .get(self.scrolling_table_state.selected_index)
+        {
+            Some(details) => details,
+            None => return,
         };
 
-        let title = format!(" {} ", details.name);
-
         let block = Block::bordered()
-            .border_type(BorderType::Thick)
-            .border_style(Style::default().fg(ACCENT))
+            .title(format!(" {} ", details.name))
             .title_style(Color::White)
-            .title_alignment(Alignment::Center);
+            .title_alignment(Alignment::Center); // or left? silo is left but that looks good this wont
 
         let key_style = Style::default().fg(Color::White);
         let text = vec![
@@ -189,5 +162,16 @@ impl CadencePage {
 
         frame.render_widget(Clear, area); // clear to remove underneath text
         frame.render_widget(paragraph, area);
+    }
+
+    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
+        self.scrolling_table_state.handle_scroll(&key_event);
+        // match key_event.code {
+        //     _ => {}
+        // };
+    }
+
+    pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
+        self.scrolling_table_state.handle_mouse(&mouse_event);
     }
 }

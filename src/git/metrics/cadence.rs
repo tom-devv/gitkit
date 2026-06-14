@@ -20,43 +20,7 @@ pub struct AuthorDetails {
 }
 
 impl CadenceData {
-    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<KitCommit>> {
-        let commits = repo.get_author_commits(email)?;
-        Ok(commits.last()) // the commit list is in reverse order
-    }
-
-    pub fn author_repository_share(repo: &KitRepo, email: &str) -> Result<f64> {
-        let author_count = repo.get_author_commits(email)?.count();
-        let repo_count = repo.iter_commits()?.count();
-
-        if repo_count == 0 {
-            return Ok(0.0);
-        }
-
-        let share = (author_count as f64) / (repo_count as f64);
-
-        let percentage = share * 100.0;
-        Ok(percentage)
-    }
-
-    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<f32> {
-        let commit_dates: Vec<DateTime<Utc>> = repo
-            .get_author_commits(email)?
-            .filter_map(|commit| commit.date)
-            .collect();
-
-        Ok(commits_per_week(&commit_dates, repo))
-    }
-
-    pub fn global_commits_per_week(repo: &KitRepo) -> Result<f32> {
-        let commit_dates: Vec<DateTime<Utc>> = repo
-            .iter_commits()?
-            .filter_map(|commit| commit.date)
-            .collect();
-
-        Ok(commits_per_week(&commit_dates, repo))
-    }
-
+    // TODO refactor this into smaller methods
     pub fn new(repo: &KitRepo) -> Self {
         let mut cadence = CadenceData {
             global_commits_per_week: Self::global_commits_per_week(repo).unwrap_or(0.0),
@@ -95,7 +59,51 @@ impl CadenceData {
             .sort_by(|a, b| b.commits_per_week.partial_cmp(&a.commits_per_week).unwrap());
         cadence
     }
+
+    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<KitCommit>> {
+        let commits = repo.get_author_commits(email)?;
+        Ok(commits.last()) // reverse order
+    }
+
+    pub fn author_last_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<KitCommit>> {
+        let mut commits = repo.get_author_commits(email)?;
+        Ok(commits.next())
+    }
+
+    pub fn author_repository_share(repo: &KitRepo, email: &str) -> Result<f64> {
+        let author_count = repo.get_author_commits(email)?.count();
+        let repo_count = repo.iter_commits()?.count();
+
+        if repo_count == 0 {
+            return Ok(0.0);
+        }
+
+        let share = (author_count as f64) / (repo_count as f64);
+
+        let percentage = share * 100.0;
+        Ok(percentage)
+    }
+
+    pub fn author_commits_per_week(repo: &KitRepo, email: &str) -> Result<f32> {
+        let commit_dates: Vec<DateTime<Utc>> = repo
+            .get_author_commits(email)?
+            .filter_map(|commit| commit.date)
+            .collect();
+
+        Ok(commits_per_week(&commit_dates, repo))
+    }
+
+    pub fn global_commits_per_week(repo: &KitRepo) -> Result<f32> {
+        let commit_dates: Vec<DateTime<Utc>> = repo
+            .iter_commits()?
+            .filter_map(|commit| commit.date)
+            .collect();
+
+        Ok(commits_per_week(&commit_dates, repo))
+    }
 }
+
+const WEEK_SOMETHING: f32 = 60.0 * 60.0 * 24.0 * 7.0;
 
 fn commits_per_week(commits: &[DateTime<Utc>], repo: &KitRepo) -> f32 {
     let first_commit = repo.get_first_commit();
@@ -107,6 +115,24 @@ fn commits_per_week(commits: &[DateTime<Utc>], repo: &KitRepo) -> f32 {
             let lifespan_weeks = (lifespan_seconds / (60.0 * 60.0 * 24.0 * 7.0)).max(1.0);
 
             (commits.len() as f32 / lifespan_weeks) as f32
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    }
+}
+
+fn commits_per_something(commits: &[DateTime<Utc>], something: f64, repo: &KitRepo) -> f64 {
+    let first_commit = repo.get_first_commit();
+    let last_commit = repo.get_last_commit();
+
+    if let (Ok(first), Ok(last)) = (first_commit, last_commit) {
+        if let (Some(start), Some(end)) = (first.date, last.date) {
+            let lifespan_seconds = (start - end).num_seconds() as f64;
+            let lifespan_weeks = (lifespan_seconds / something).max(1.0);
+
+            (commits.len() as f64 / lifespan_weeks) as f64
         } else {
             0.0
         }

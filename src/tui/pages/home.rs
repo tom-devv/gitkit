@@ -4,17 +4,13 @@ use ratatui::{
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
     style::{Stylize, palette::material::WHITE},
     text::{Line, Text},
-    widgets::{
-        Block, Padding, Paragraph, Wrap,
-    },
+    widgets::{Block, Padding, Paragraph, Wrap},
 };
 
 use crate::{
+    git::metrics::home::HomeData,
     git::{kit::KitRepo, util},
-    metrics::home::HomeData,
-    tui::{
-        ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable,
-    },
+    tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable},
 };
 
 pub struct HomePage {

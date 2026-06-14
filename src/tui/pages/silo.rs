@@ -9,7 +9,7 @@ use ratatui::{
 
 use crate::{
     git::kit::KitRepo,
-    metrics::silo::SiloData,
+    git::metrics::silo::SiloData,
     tui::{
         ACCENT, Renderable,
         widgets::scroll_table::{ScrollingTable, ScrollingTableState},

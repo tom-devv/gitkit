@@ -20,7 +20,6 @@ use crate::{
 
 pub mod error;
 pub mod git;
-pub mod metrics;
 pub mod tui;
 pub mod worker;
 
@@ -39,7 +38,6 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
-        let _x = repo.list_branch();
 
         return Ok(());
     }
