@@ -25,7 +25,7 @@ pub mod worker;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct GKitArgs {
+pub struct KitArgs {
     #[arg(default_value = ".")]
     target_path: String,
 
@@ -33,8 +33,8 @@ pub struct GKitArgs {
     pub debug: bool,
 }
 
-pub fn run(args: GKitArgs) -> Result<()> {
-    let repo = KitRepo::open(args.target_path)?;
+pub fn run(args: KitArgs) -> Result<()> {
+    let repo = KitRepo::open(&args.target_path)?;
 
     if args.debug {
         println!("Debug Mode\n");
@@ -58,7 +58,7 @@ pub fn run(args: GKitArgs) -> Result<()> {
     terminal.hide_cursor()?;
     terminal.clear()?;
 
-    let tui_result = tui(&mut terminal, &repo);
+    let tui_result = tui(&mut terminal, &repo, &args);
 
     let _ = terminal.show_cursor();
     let _ = ratatui::crossterm::execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
@@ -69,8 +69,8 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
 pub fn tui(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    // state: &mut TuiState,
     repo: &KitRepo,
+    args: &KitArgs,
 ) -> Result<()> {
     let repo_path = repo.inner.path().to_path_buf();
 
@@ -81,7 +81,7 @@ pub fn tui(
     let data = initial_fetch(&worker, terminal)?;
     let mut state = TuiState::new(data)?;
 
-    while !state.is_quit {
+    while !state.is_quit && !args.debug {
         terminal.draw(|frame| render(frame, &mut state))?;
 
         if state.refresh {
