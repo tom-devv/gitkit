@@ -8,8 +8,7 @@ use ratatui::{
 };
 
 use crate::{
-    git::metrics::home::HomeData,
-    git::{kit::KitRepo, util},
+    git::{kit::KitRepo, metrics::home::HomeData, util},
     tui::{ACCENT, ACCENT_TEXT, GITKIT_ASCII, Renderable},
 };
 

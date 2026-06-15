@@ -17,6 +17,7 @@ pub struct AuthorDetails {
     pub first_commit: DateTime<Utc>,
     pub total_commits: u32,
     pub repo_share: f64,
+    pub all_commits: Vec<KitCommit>,
 }
 
 impl CadenceData {
@@ -45,12 +46,15 @@ impl CadenceData {
 
                 let repo_share = Self::author_repository_share(repo, &author).unwrap_or(0.0);
 
+                let all_commits: Vec<KitCommit> =
+                    repo.get_author_commits(&author).unwrap().collect();
                 cadence.author_details.push(AuthorDetails {
                     name: author.clone(),
                     commits_per_week: commits_per_week(&commit_dates, repo),
                     first_commit,
                     total_commits,
                     repo_share,
+                    all_commits,
                 });
             }
         }

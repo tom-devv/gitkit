@@ -1,21 +1,20 @@
 use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Layout, Rect},
+    layout::{Alignment, Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{
-        BarChart, Block, Borders, Cell, Clear, Padding, Paragraph,
-        Row, Table,
-    },
+    widgets::{BarChart, Block, Borders, Cell, Padding, Paragraph, Row, Table},
 };
 
 use crate::{
-    git::kit::KitRepo,
-    git::metrics::cadence::CadenceData,
+    git::{kit::KitRepo, metrics::cadence::CadenceData},
     tui::{
         ACCENT, Renderable,
-        widgets::scroll_table::{ScrollingTable, ScrollingTableState},
+        widgets::{
+            activity_table::ActivityTable,
+            scroll_table::{ScrollingTable, ScrollingTableState},
+        },
     },
 };
 
@@ -132,10 +131,19 @@ impl CadencePage {
             None => return,
         };
 
-        let block = Block::bordered()
-            .title(format!(" {} ", details.name))
-            .title_style(Color::White)
-            .title_alignment(Alignment::Center); // or left? silo is left but that looks good this wont
+        frame.render_widget(
+            Block::bordered()
+                .title(format!(" {} ", details.name))
+                .title_style(Color::White)
+                .title_alignment(Alignment::Center),
+            area,
+        ); // or left? silo is left but that looks good this wont, area);
+
+        let layout = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(area.inner(Margin {
+                horizontal: 1,
+                vertical: 2,
+            }));
 
         let key_style = Style::default().fg(Color::White);
         let text = vec![
@@ -158,10 +166,11 @@ impl CadencePage {
             ]),
         ];
 
-        let paragraph = Paragraph::new(text).block(block).alignment(Alignment::Left);
+        let paragraph = Paragraph::new(text).alignment(Alignment::Left);
 
-        frame.render_widget(Clear, area); // clear to remove underneath text
-        frame.render_widget(paragraph, area);
+        frame.render_widget(paragraph, layout[0]);
+
+        frame.render_widget(ActivityTable::new(&details.all_commits), layout[1]);
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
