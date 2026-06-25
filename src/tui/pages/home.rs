@@ -21,12 +21,7 @@ impl HomePage {
         HomePage { data }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo, refresh: &mut bool) {
-        match key_event.code {
-            KeyCode::Char('r') => *refresh = true,
-            _ => {}
-        }
-    }
+    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {}
 
     pub fn handle_mouse(&mut self, _mouse_event: MouseEvent) {}
 

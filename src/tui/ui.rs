@@ -14,7 +14,7 @@ use crate::tui::{
 };
 
 pub fn render(frame: &mut Frame, state: &mut TuiState) {
-    if state.loading {
+    if state.is_loading() {
         // no need to clear; first to be drawn.
         frame.render_stateful_widget(
             LoadingWidget::default(),
@@ -34,9 +34,10 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
     let content_area = render_outer_frame(frame, chunks[1], state);
 
     match state.active_page {
-        Page::Home => state.home.render(frame, content_area),
-        Page::Cadence => state.cadence.render(frame, content_area),
-        Page::Silo => state.silo.render(frame, content_area),
+        // unwrap here because is_loading() will block until the page is_some()
+        Page::Home => state.home.as_mut().unwrap().render(frame, content_area),
+        Page::Cadence => state.cadence.as_mut().unwrap().render(frame, content_area),
+        Page::Silo => state.silo.as_mut().unwrap().render(frame, content_area),
     }
 }
 
