@@ -1,4 +1,4 @@
-use git2::Commit;
+use git2::{Commit, StatusOptions, Statuses};
 
 use crate::git::kit::KitRepo;
 
@@ -24,5 +24,16 @@ impl KitRepo {
             .iter_raw_commits()?
             .filter(move |commit| commit.author().email().map_or(false, |e| e == email_owned));
         Ok(iter)
+    }
+
+    pub(in crate::git) fn get_raw_status(&self) -> Result<Statuses<'_>, git2::Error> {
+        let mut opts = StatusOptions::new();
+        opts.include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_ignored(false);
+
+        let statuses = self.inner.statuses(Some(&mut opts))?;
+
+        Ok(statuses)
     }
 }

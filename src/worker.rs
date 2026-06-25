@@ -2,8 +2,7 @@ use std::{sync::mpsc, thread};
 
 use crate::{
     git::kit::KitRepo,
-    metrics::{cadence::CadenceData, silo::SiloData},
-    tui::page::HomeData,
+    git::metrics::{cadence::CadenceData, home::HomeData, silo::SiloData},
 };
 
 pub struct DataPayload {

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path};
 
-use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository, StatusOptions, Statuses};
+use git2::{Commit, Diff, DiffOptions, Error, Oid, Repository};
 
 use crate::git::{model::KitCommit, status::KitStatus};
 
@@ -167,6 +167,20 @@ impl<'repo> KitRepo {
         Ok(diff_iter)
     }
 
+    pub fn get_first_commit(&self) -> Result<KitCommit, git2::Error> {
+        self.iter_raw_commits()?
+            .next()
+            .and_then(|raw_commit| Some(KitCommit::from_git2(&raw_commit)))
+            .ok_or(git2::Error::from_str("Failed to find first commit"))
+    }
+
+    pub fn get_last_commit(&self) -> Result<KitCommit, git2::Error> {
+        self.iter_raw_commits()?
+            .last()
+            .and_then(|raw_commit| Some(KitCommit::from_git2(&raw_commit)))
+            .ok_or(git2::Error::from_str("Failed to find last commit"))
+    }
+
     pub fn current_branch(&self) -> Result<String, git2::Error> {
         let head = self.inner.head()?;
         head.shorthand().map(|s| s.to_owned())
@@ -174,17 +188,6 @@ impl<'repo> KitRepo {
 
     pub fn get_status(&self) -> KitStatus {
         KitStatus::new(&self)
-    }
-
-    fn get_raw_status(&self) -> Result<Statuses<'_>, git2::Error> {
-        let mut opts = StatusOptions::new();
-        opts.include_untracked(true)
-            .recurse_untracked_dirs(true)
-            .include_ignored(false);
-
-        let statuses = self.inner.statuses(Some(&mut opts))?;
-
-        Ok(statuses)
     }
 
     pub fn is_dirty(&self) -> Result<bool, git2::Error> {

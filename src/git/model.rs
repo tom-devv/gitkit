@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use git2::Commit;
 
+#[derive(Debug, Clone)]
 pub struct KitCommit {
     pub id: String,
     pub email: String,

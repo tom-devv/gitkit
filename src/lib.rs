@@ -13,14 +13,13 @@ use crate::{
     tui::{
         state::TuiState,
         ui::render,
-        widget::{LoadingState, LoadingWidget},
+        widgets::loading::{LoadingState, LoadingWidget},
     },
     worker::{DataPayload, Worker},
 };
 
 pub mod error;
 pub mod git;
-pub mod metrics;
 pub mod tui;
 pub mod worker;
 
@@ -39,12 +38,9 @@ pub fn run(args: GKitArgs) -> Result<()> {
 
     if args.debug {
         println!("Debug Mode\n");
-        let _x = repo.list_branch();
-        // println!("{:?}", x.len());
 
         return Ok(());
     }
-    // let mut state = TuiState::new(&repo)?; // blocking
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
@@ -71,10 +67,10 @@ pub fn run(args: GKitArgs) -> Result<()> {
     tui_result // returns once drawing stops
 }
 
-pub fn tui<'a>(
+pub fn tui(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     // state: &mut TuiState,
-    repo: &'a KitRepo,
+    repo: &KitRepo,
 ) -> Result<()> {
     let repo_path = repo.inner.path().to_path_buf();
 

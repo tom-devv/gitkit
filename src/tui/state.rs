@@ -1,12 +1,14 @@
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
-use crate::metrics::cadence::CadencePage;
 
 use crate::error::Result;
-use crate::metrics::silo::SiloPage;
-use crate::tui::page::{HomePage, Page};
-use crate::tui::widget::LoadingState;
+
+use crate::tui::pages::Page;
+use crate::tui::pages::cadence::CadencePage;
+use crate::tui::pages::home::HomePage;
+use crate::tui::pages::silo::SiloPage;
+use crate::tui::widgets::loading::LoadingState;
 use crate::worker::DataPayload;
 
 pub struct TuiState {
@@ -61,8 +63,8 @@ impl TuiState {
     pub fn handle_mouse_event(&mut self, mouse: MouseEvent, _repo: &KitRepo) {
         match self.active_page {
             Page::Home => self.home.handle_mouse(mouse),
-            Page::Cadence => {}
-            Page::Silo => {}
+            Page::Cadence => self.cadence.handle_mouse(mouse),
+            Page::Silo => self.silo.handle_mouse(mouse),
         }
     }
 
@@ -74,7 +76,9 @@ impl TuiState {
             Page::Cadence => {
                 vec![
                     ("Tab", "Next"),
-                    ("(k,⇧)/(j,⇩)", "up/down"),
+                    ("j/k/⇅/Scroll", "Move"),
+                    ("J/K", "5x"),
+                    ("g/G", "Top/Bot"),
                     ("⏎", "Select"),
                     ("q", "quit"),
                 ]
@@ -82,10 +86,10 @@ impl TuiState {
             Page::Silo => {
                 vec![
                     ("Tab", "Next"),
-                    ("(k,⇧)/(j,⇩)", "up/down"),
-                    ("(SHIFT + k)/(shift + j)", "5 (up/down)"),
-                    ("g/G", "top/bottom"),
-                    ("q", "quit"),
+                    ("j/k/⇅/Scroll", "Move"),
+                    ("J/K", "5x"),
+                    ("g/G", "Top/Bot"),
+                    ("q", "Quit"),
                 ]
             }
         }
