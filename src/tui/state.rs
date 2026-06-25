@@ -124,7 +124,6 @@ impl TuiState {
                     ("j/k/⇅/Scroll", "Move"),
                     ("J/K", "5x"),
                     ("g/G", "Top/Bot"),
-                    ("⏎", "Select"),
                     ("r", "refresh"),
                     ("q", "quit"),
                 ]
