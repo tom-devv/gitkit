@@ -35,8 +35,6 @@ impl<'repo> KitRepo {
                 y.0.name()
                     .unwrap_or(Some("No name found"))
                     .unwrap_or_default();
-
-            println!("{}", name);
         });
         Ok(())
     }

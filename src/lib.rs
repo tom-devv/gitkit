@@ -15,7 +15,7 @@ use crate::{
         ui::render,
         widgets::loading::{LoadingState, LoadingWidget},
     },
-    worker::{DataPayload, Worker},
+    worker::Worker,
 };
 
 pub mod error;
@@ -77,22 +77,19 @@ pub fn tui(
     let worker = Worker::start(repo_path);
     worker.refresh();
 
-    // listen for woker message that data has been fetched
-    let data = initial_fetch(&worker, terminal)?;
-    let mut state = TuiState::new(data)?;
+    let mut state = TuiState::new();
 
     while !state.is_quit && !args.debug {
         terminal.draw(|frame| render(frame, &mut state))?;
 
         if state.refresh {
-            state.refresh = false;
-            state.loading = true;
+            state.refresh();
             worker.refresh();
         }
 
-        // when chan gets message do refresh
-        if let Ok(payload) = worker.payload_rx.try_recv() {
-            state.refresh(payload);
+        // when update chan gets message update state
+        if let Ok(update) = worker.update_rx.try_recv() {
+            state.update(update);
         }
 
         if event::poll(Duration::from_millis(16))? {
@@ -113,40 +110,4 @@ pub fn tui(
     worker.quit();
 
     Ok(())
-}
-
-// this could be nicer with a refactor of Worker
-fn initial_fetch(
-    worker: &Worker,
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-) -> Result<DataPayload> {
-    let mut loading_state = LoadingState::new();
-
-    let data = loop {
-        match worker.payload_rx.try_recv() {
-            Ok(msg) => break msg,
-
-            // show loading widget until data is fetched
-            Err(TryRecvError::Empty) => {
-                terminal.draw(|frame| {
-                    frame.render_stateful_widget(
-                        LoadingWidget::default(),
-                        frame.area(),
-                        &mut loading_state,
-                    )
-                })?;
-            }
-
-            Err(TryRecvError::Disconnected) => panic!("Failed to fetch data"),
-        }
-
-        if event::poll(Duration::from_millis(16))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    panic!("Quitting"); // state does not exist here so we must panic to exit
-                }
-            }
-        }
-    };
-    Ok(data)
 }
