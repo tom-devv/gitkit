@@ -257,7 +257,7 @@ impl CadencePage {
 }
 
 impl CadenceData {
-    pub fn author_first_commit<'a>(repo: &'a KitRepo, email: &str) -> Result<Option<KitCommit>> {
+    pub fn author_first_commit(repo: &KitRepo, email: &str) -> Result<Option<KitCommit>> {
         let commits = repo.get_author_commits(email)?;
         Ok(commits.last()) // the commit list is in reverse order
     }
