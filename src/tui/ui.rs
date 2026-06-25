@@ -14,17 +14,6 @@ use crate::tui::{
 };
 
 pub fn render(frame: &mut Frame, state: &mut TuiState) {
-    if state.is_loading() {
-        // no need to clear; first to be drawn.
-        frame.render_stateful_widget(
-            LoadingWidget::default(),
-            frame.area(),
-            &mut state.loading_state,
-        );
-
-        return;
-    }
-
     let chunks = Layout::vertical([Constraint::Length(3), Constraint::Min(0)]) // 3 chars is enough to render the nav text
         .margin(2)
         .split(frame.area());
@@ -32,6 +21,16 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
     render_tabs(frame, &state, chunks[0]);
 
     let content_area = render_outer_frame(frame, chunks[1], state);
+
+    if state.is_loading() {
+        frame.render_stateful_widget(
+            LoadingWidget::default().text(state.active_page.to_str()),
+            content_area,
+            &mut state.loading_state,
+        );
+
+        return;
+    }
 
     match state.active_page {
         // unwrap here because is_loading() will block until the page is_some()
