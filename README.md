@@ -15,7 +15,9 @@ GitKit provides a sleek TUI (terminal user interface) to display insightful metr
 ## Features 
 
 🌎 Overivew - General overview of the repository including: status, last activity, total commits
+
 📈 Cadence - Repository and per user cadence patterns: commits per week, repo share %, first commit
+
 🚨 Silo - Assess the risk of a knowledge silo per file via churn: Silo risk %, total churn 
 
 ## Installation
