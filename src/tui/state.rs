@@ -2,7 +2,6 @@ use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
 
-use crate::error::Result;
 
 use crate::tui::pages::Page;
 use crate::tui::pages::cadence::CadencePage;

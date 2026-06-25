@@ -107,8 +107,6 @@ impl CadenceData {
     }
 }
 
-const WEEK_SOMETHING: f32 = 60.0 * 60.0 * 24.0 * 7.0;
-
 fn commits_per_week(commits: &[DateTime<Utc>], repo: &KitRepo) -> f32 {
     let first_commit = repo.get_first_commit();
     let last_commit = repo.get_last_commit();
@@ -119,24 +117,6 @@ fn commits_per_week(commits: &[DateTime<Utc>], repo: &KitRepo) -> f32 {
             let lifespan_weeks = (lifespan_seconds / (60.0 * 60.0 * 24.0 * 7.0)).max(1.0);
 
             (commits.len() as f32 / lifespan_weeks) as f32
-        } else {
-            0.0
-        }
-    } else {
-        0.0
-    }
-}
-
-fn commits_per_something(commits: &[DateTime<Utc>], something: f64, repo: &KitRepo) -> f64 {
-    let first_commit = repo.get_first_commit();
-    let last_commit = repo.get_last_commit();
-
-    if let (Ok(first), Ok(last)) = (first_commit, last_commit) {
-        if let (Some(start), Some(end)) = (first.date, last.date) {
-            let lifespan_seconds = (start - end).num_seconds() as f64;
-            let lifespan_weeks = (lifespan_seconds / something).max(1.0);
-
-            (commits.len() as f64 / lifespan_weeks) as f64
         } else {
             0.0
         }

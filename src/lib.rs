@@ -1,9 +1,9 @@
 use clap::Parser;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{io, panic, sync::mpsc::TryRecvError, time::Duration};
+use std::{io, panic, time::Duration};
 
 use ratatui::{Terminal, backend::CrosstermBackend};
 
@@ -13,7 +13,6 @@ use crate::{
     tui::{
         state::TuiState,
         ui::render,
-        widgets::loading::{LoadingState, LoadingWidget},
     },
     worker::Worker,
 };

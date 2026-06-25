@@ -31,7 +31,7 @@ impl<'repo> KitRepo {
     pub fn list_branch(&self) -> Result<(), git2::Error> {
         let branches = self.inner.branches(Some(git2::BranchType::Local))?;
         branches.filter_map(|x| x.ok()).for_each(|y| {
-            let name =
+            let _name =
                 y.0.name()
                     .unwrap_or(Some("No name found"))
                     .unwrap_or_default();

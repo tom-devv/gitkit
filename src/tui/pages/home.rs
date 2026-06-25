@@ -1,4 +1,4 @@
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
+use crossterm::event::{KeyEvent, MouseEvent};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, HorizontalAlignment::Center, Layout, Rect},
@@ -21,7 +21,7 @@ impl HomePage {
         HomePage { data }
     }
 
-    pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {}
+    pub fn handle_key(&mut self, _key_event: KeyEvent, _repo: &KitRepo) {}
 
     pub fn handle_mouse(&mut self, _mouse_event: MouseEvent) {}
 
