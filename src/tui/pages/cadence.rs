@@ -52,20 +52,6 @@ impl Renderable for CadencePage {
     }
 }
 
-impl Searchable for CadencePage {
-    fn searched(&mut self, value: &str) {
-        self.update(value);
-    }
-
-    fn update(&mut self, value: &str) {
-        let value = value.to_lowercase();
-        self.view_state
-            .apply_search(&self.data.author_details, |details| {
-                details.name.to_lowercase().contains(&value)
-            });
-    }
-}
-
 impl CadencePage {
     pub fn new(data: CadenceData) -> Self {
         let data_len = data.author_details.len();
@@ -76,11 +62,9 @@ impl CadencePage {
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
-        // this bar chart is not impacted by searching, todo revisit this?
         let mut authors: Vec<(&String, &f32)> = self
-            .data
-            .author_details
-            .iter()
+            .view_state
+            .iter_visible(&self.data.author_details)
             .map(|ac| (&ac.name, &ac.commits_per_week))
             .collect();
         authors.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
@@ -184,5 +168,19 @@ impl CadencePage {
 
     pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
         self.view_state.handle_mouse(&mouse_event);
+    }
+}
+
+impl Searchable for CadencePage {
+    fn searched(&mut self, value: &str) {
+        self.update(value);
+    }
+
+    fn update(&mut self, value: &str) {
+        let value = value.to_lowercase();
+        self.view_state
+            .apply_search(&self.data.author_details, |details| {
+                details.name.to_lowercase().contains(&value)
+            });
     }
 }
