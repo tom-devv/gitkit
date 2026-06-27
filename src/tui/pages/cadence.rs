@@ -22,6 +22,7 @@ use crate::{
 pub struct CadencePage {
     pub data: CadenceData,
     pub scrolling_table_state: ScrollingTableState,
+    pub search_filter: Vec<usize>,
 }
 
 impl Renderable for CadencePage {
@@ -55,17 +56,19 @@ impl Renderable for CadencePage {
 impl CadencePage {
     pub fn new(data: CadenceData) -> Self {
         let data_len = data.author_details.len();
+        let search_filter = (0..data_len).collect();
         Self {
             data,
             scrolling_table_state: ScrollingTableState::new(data_len),
+            search_filter,
         }
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
         let mut authors: Vec<(&String, &f32)> = self
-            .data
-            .author_details
+            .search_filter
             .iter()
+            .map(|&i| &self.data.author_details[i])
             .map(|ac| (&ac.name, &ac.commits_per_week))
             .collect();
         authors.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
@@ -95,9 +98,9 @@ impl CadencePage {
         let widths = [Constraint::Percentage(50), Constraint::Percentage(30)];
 
         let rows: Vec<Row> = self
-            .data
-            .author_details
+            .search_filter
             .iter()
+            .map(|&i| &self.data.author_details[i])
             .map(|item| {
                 Row::new(vec![
                     Cell::from(item.name.clone())
@@ -123,11 +126,10 @@ impl CadencePage {
 
     pub fn more_info(&self, frame: &mut Frame, area: Rect) {
         let details = match self
-            .data
-            .author_details
+            .search_filter
             .get(self.scrolling_table_state.selected_index)
         {
-            Some(details) => details,
+            Some(&i) => &self.data.author_details[i],
             None => return,
         };
 

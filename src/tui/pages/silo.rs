@@ -65,7 +65,7 @@ impl SiloPage {
         Self {
             data,
             scrolling_table_state: ScrollingTableState::new(data_len),
-            search_filter: search_filter,
+            search_filter,
         }
     }
 
@@ -142,7 +142,7 @@ impl SiloPage {
             .search_filter
             .get(self.scrolling_table_state.selected_index)
         {
-            Some(&silo) => &self.data.files[silo],
+            Some(&i) => &self.data.files[i],
             None => return,
         };
 
