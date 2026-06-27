@@ -8,10 +8,9 @@ use ratatui::{
 };
 
 use crate::{
-    git::kit::KitRepo,
-    git::metrics::silo::SiloData,
+    git::{kit::KitRepo, metrics::silo::SiloData},
     tui::{
-        ACCENT, Renderable,
+        ACCENT, Renderable, Searchable,
         widgets::scroll_table::{ScrollingTable, ScrollingTableState},
     },
 };
@@ -19,6 +18,7 @@ use crate::{
 pub struct SiloPage {
     pub data: SiloData,
     pub scrolling_table_state: ScrollingTableState,
+    pub search_filter: Vec<usize>,
 }
 
 impl Renderable for SiloPage {
@@ -35,12 +35,37 @@ impl Renderable for SiloPage {
     }
 }
 
+impl Searchable for SiloPage {
+    fn searched(&mut self, value: &str) {
+        self.update(value);
+    }
+
+    fn update(&mut self, value: &str) {
+        let value = value.to_lowercase();
+        self.search_filter = self
+            .data
+            .files
+            .iter()
+            .enumerate()
+            .filter(|(_, file)| file.file.to_lowercase().contains(&value)) // adjust to your actual data struct
+            .map(|(index, _)| index)
+            .collect();
+
+        let new_len = self.search_filter.len();
+        self.scrolling_table_state.data_len = new_len;
+
+        self.scrolling_table_state.selected_index = 0;
+    }
+}
+
 impl SiloPage {
     pub fn new(data: SiloData) -> Self {
         let data_len = data.files.len();
+        let search_filter: Vec<usize> = (0..data_len).collect();
         Self {
             data,
             scrolling_table_state: ScrollingTableState::new(data_len),
+            search_filter: search_filter,
         }
     }
 
@@ -54,9 +79,9 @@ impl SiloPage {
 
     pub fn render_churn_table(&mut self, frame: &mut Frame, area: Rect) {
         let rows: Vec<Row> = self
-            .data
-            .files
+            .search_filter
             .iter()
+            .map(|&i| &self.data.files[i])
             .map(|churn| {
                 let ratio = churn.risk as f64 / 100.0;
                 let bar = generate_silo_bar(ratio, 20); // TODO change fixed width 20
@@ -105,20 +130,19 @@ impl SiloPage {
         let left = chunks[0];
         let right = chunks[1];
 
-        self.render_foo(frame, left);
+        self.render_file_info(frame, left);
 
         let block = Block::bordered();
 
         frame.render_widget(block, right);
     }
 
-    pub fn render_foo(&self, frame: &mut Frame, area: Rect) {
+    pub fn render_file_info(&self, frame: &mut Frame, area: Rect) {
         let silo = match self
-            .data
-            .files
+            .search_filter
             .get(self.scrolling_table_state.selected_index)
         {
-            Some(silo) => silo,
+            Some(&silo) => &self.data.files[silo],
             None => return,
         };
 

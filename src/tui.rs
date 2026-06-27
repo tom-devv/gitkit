@@ -1,6 +1,7 @@
 use ratatui::style::Color;
 
 pub mod pages;
+pub mod search;
 pub mod state;
 pub mod ui;
 pub mod widgets;
@@ -23,4 +24,10 @@ const GITKIT_ASCII: &str = r"
 ";
 pub trait Renderable {
     fn render(&mut self, frame: &mut ratatui::prelude::Frame, area: ratatui::prelude::Rect);
+}
+
+pub trait Searchable {
+    fn searched(&mut self, value: &str);
+
+    fn update(&mut self, value: &str);
 }

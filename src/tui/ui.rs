@@ -5,11 +5,17 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Padding, Tabs, TitlePosition},
+    widgets::{
+        Block,
+        BorderType::{self, Thick},
+        Borders, Clear, Padding, Paragraph, Tabs, TitlePosition,
+    },
 };
 
 use crate::tui::{
-    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, pages::Page, state::TuiState,
+    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable,
+    pages::Page,
+    state::{Mode::Searching, TuiState},
     widgets::loading::LoadingWidget,
 };
 
@@ -38,6 +44,9 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
         Page::Cadence => state.cadence.as_mut().unwrap().render(frame, content_area),
         Page::Silo => state.silo.as_mut().unwrap().render(frame, content_area),
     }
+
+    // render last - on top of content
+    render_search_modal(frame, content_area, state);
 }
 
 fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect {
@@ -51,6 +60,35 @@ fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect 
 
     frame.render_widget(&border, chunk);
     border.inner(chunk)
+}
+
+fn render_search_modal(frame: &mut Frame, inner: Rect, state: &TuiState) {
+    if state.mode != Searching {
+        return;
+    }
+
+    let middle = inner
+        .centered_horizontally(Constraint::Max(40))
+        .centered_vertically(Constraint::Max(3));
+
+    frame.render_widget(Clear, middle);
+
+    let search_block = Block::bordered()
+        .border_type(Thick)
+        .title(" Search ")
+        .border_style(ACCENT);
+
+    frame.render_widget(
+        Paragraph::new(state.search.input.value())
+            .block(search_block)
+            .alignment(ratatui::layout::HorizontalAlignment::Left),
+        middle,
+    );
+
+    frame.set_cursor_position((
+        middle.x + 1 + state.search.input.visual_cursor() as u16,
+        middle.y + 1,
+    ));
 }
 
 // keybind code from binsider

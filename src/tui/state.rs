@@ -2,19 +2,28 @@ use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 
 use crate::git::kit::KitRepo;
 
-
 use crate::tui::pages::Page;
 use crate::tui::pages::cadence::CadencePage;
 use crate::tui::pages::home::HomePage;
 use crate::tui::pages::silo::SiloPage;
+use crate::tui::search::Search;
+use crate::tui::state::Mode::{Normal, Searching};
 use crate::tui::widgets::loading::LoadingState;
 use crate::worker::DataUpdate;
+
+#[derive(PartialEq, Eq)]
+pub enum Mode {
+    Normal,
+    Searching,
+}
 
 pub struct TuiState {
     pub is_quit: bool,
     pub loading_state: LoadingState,
     pub refresh: bool,
     pub active_page: Page,
+    pub mode: Mode,
+    pub search: Search,
     pub home: Option<HomePage>,
     pub cadence: Option<CadencePage>,
     pub silo: Option<SiloPage>,
@@ -27,6 +36,8 @@ impl TuiState {
             loading_state: LoadingState::new(),
             refresh: false,
             active_page: Page::default(),
+            mode: Normal,
+            search: Search::default(),
             home: None,
             cadence: None,
             silo: None,
@@ -53,6 +64,14 @@ impl TuiState {
         }
     }
 
+    pub fn change_state(&mut self) {
+        let new_mode = match self.mode {
+            Normal => Searching,
+            Searching => Normal,
+        };
+        self.mode = new_mode;
+    }
+
     // create a new tui state, ready to be populated
     // keeps current page the same
     pub fn refresh(&mut self) {
@@ -67,7 +86,14 @@ impl TuiState {
 
     pub fn handle_key_event(&mut self, key: KeyEvent, repo: &KitRepo) {
         match key.code {
-            KeyCode::Char('q') => self.is_quit = true,
+            KeyCode::Char('q') | KeyCode::Char('Q') => self.is_quit = true,
+            KeyCode::Char('/') => {
+                // todo move this?
+                self.search.input.reset();
+                self.mode = Mode::Searching;
+                Search::trigger_update(self, "");
+            }
+
             KeyCode::Char('r') => self.refresh = true,
             KeyCode::Tab => self.next_tab(),
             // this if let is a bit verbose
@@ -113,6 +139,10 @@ impl TuiState {
     }
 
     pub fn get_binds(&self) -> Vec<(&str, &str)> {
+        if self.mode == Searching {
+            return vec![("Esc", "Abort"), ("Enter", "Search")];
+        }
+
         match self.active_page {
             Page::Home => {
                 vec![("Tab", "Next"), ("r", "refresh"), ("q", "quit")]
@@ -120,6 +150,7 @@ impl TuiState {
             Page::Cadence => {
                 vec![
                     ("Tab", "Next"),
+                    ("/", "Search"),
                     ("j/k/⇅/Scroll", "Move"),
                     ("J/K", "5x"),
                     ("g/G", "Top/Bot"),
@@ -130,6 +161,7 @@ impl TuiState {
             Page::Silo => {
                 vec![
                     ("Tab", "Next"),
+                    ("/", "Search"),
                     ("j/k/⇅/Scroll", "Move"),
                     ("J/K", "5x"),
                     ("g/G", "Top/Bot"),

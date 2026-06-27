@@ -11,7 +11,11 @@ use crate::{
     error::Result,
     git::kit::KitRepo,
     tui::{
-        state::TuiState,
+        search::Search,
+        state::{
+            Mode::{Normal, Searching},
+            TuiState,
+        },
         ui::render,
     },
     worker::Worker,
@@ -93,11 +97,14 @@ pub fn tui(
 
         if event::poll(Duration::from_millis(16))? {
             match event::read()? {
-                Event::Key(key) => {
-                    if key.kind == KeyEventKind::Press {
-                        state.handle_key_event(key, repo);
+                Event::Key(key) => match state.mode {
+                    Normal => {
+                        if key.kind == KeyEventKind::Press {
+                            state.handle_key_event(key, repo);
+                        }
                     }
-                }
+                    Searching => Search::handle_event(&mut state, &key),
+                },
                 Event::Mouse(mouse) => {
                     state.handle_mouse_event(mouse, repo);
                 }
