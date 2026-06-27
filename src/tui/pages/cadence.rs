@@ -10,7 +10,7 @@ use ratatui::{
 use crate::{
     git::{kit::KitRepo, metrics::cadence::CadenceData},
     tui::{
-        ACCENT, Renderable,
+        ACCENT, Renderable, Searchable,
         widgets::{
             activity_table::ActivityTable,
             scroll_table::{ScrollingTable, ScrollingTableState},
@@ -21,8 +21,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CadencePage {
     pub data: CadenceData,
-    pub scrolling_table_state: ScrollingTableState,
-    pub search_filter: Vec<usize>,
+    pub view_state: ScrollingTableState,
 }
 
 impl Renderable for CadencePage {
@@ -53,22 +52,35 @@ impl Renderable for CadencePage {
     }
 }
 
+impl Searchable for CadencePage {
+    fn searched(&mut self, value: &str) {
+        self.update(value);
+    }
+
+    fn update(&mut self, value: &str) {
+        let value = value.to_lowercase();
+        self.view_state
+            .apply_search(&self.data.author_details, |details| {
+                details.name.to_lowercase().contains(&value)
+            });
+    }
+}
+
 impl CadencePage {
     pub fn new(data: CadenceData) -> Self {
         let data_len = data.author_details.len();
-        let search_filter = (0..data_len).collect();
         Self {
             data,
-            scrolling_table_state: ScrollingTableState::new(data_len),
-            search_filter,
+            view_state: ScrollingTableState::new(data_len),
         }
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
+        // this bar chart is not impacted by searching, todo revisit this?
         let mut authors: Vec<(&String, &f32)> = self
-            .search_filter
+            .data
+            .author_details
             .iter()
-            .map(|&i| &self.data.author_details[i])
             .map(|ac| (&ac.name, &ac.commits_per_week))
             .collect();
         authors.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
@@ -98,9 +110,8 @@ impl CadencePage {
         let widths = [Constraint::Percentage(50), Constraint::Percentage(30)];
 
         let rows: Vec<Row> = self
-            .search_filter
-            .iter()
-            .map(|&i| &self.data.author_details[i])
+            .view_state
+            .iter_visible(&self.data.author_details)
             .map(|item| {
                 Row::new(vec![
                     Cell::from(item.name.clone())
@@ -117,20 +128,12 @@ impl CadencePage {
             .row_highlight_style(ACCENT)
             .highlight_symbol("> ");
 
-        frame.render_stateful_widget(
-            ScrollingTable::new(table),
-            area,
-            &mut self.scrolling_table_state,
-        );
+        frame.render_stateful_widget(ScrollingTable::new(table), area, &mut self.view_state);
     }
 
     pub fn more_info(&self, frame: &mut Frame, area: Rect) {
-        let details = match self
-            .search_filter
-            .get(self.scrolling_table_state.selected_index)
-        {
-            Some(&i) => &self.data.author_details[i],
-            None => return,
+        let Some(details) = self.view_state.get_selected(&self.data.author_details) else {
+            return;
         };
 
         frame.render_widget(
@@ -176,13 +179,10 @@ impl CadencePage {
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
-        self.scrolling_table_state.handle_scroll(&key_event);
-        // match key_event.code {
-        //     _ => {}
-        // };
+        self.view_state.handle_scroll(&key_event);
     }
 
     pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
-        self.scrolling_table_state.handle_mouse(&mouse_event);
+        self.view_state.handle_mouse(&mouse_event);
     }
 }

@@ -46,25 +46,27 @@ impl Search {
         Self::trigger_update(state, &current_query);
     }
 
-    pub fn trigger_searched(state: &mut TuiState, query: &str) {
+    fn search_event(state: &mut TuiState, mut action: impl FnMut(&mut dyn Searchable)) {
         match state.active_page {
             Page::Silo => {
                 if let Some(silo) = state.silo.as_mut() {
-                    silo.searched(query);
+                    action(silo);
                 }
             }
-            _ => {}
+            Page::Cadence => {
+                if let Some(cadence) = state.cadence.as_mut() {
+                    action(cadence);
+                }
+            }
+            Page::Home => {}
         }
     }
 
+    pub fn trigger_searched(state: &mut TuiState, query: &str) {
+        Self::search_event(state, |page| page.searched(query));
+    }
+
     pub fn trigger_update(state: &mut TuiState, query: &str) {
-        match state.active_page {
-            Page::Silo => {
-                if let Some(silo) = state.silo.as_mut() {
-                    silo.update(query);
-                }
-            }
-            _ => {}
-        }
+        Self::search_event(state, |page| page.update(query));
     }
 }
