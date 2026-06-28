@@ -48,6 +48,7 @@ pub struct ScrollingTableState {
     pub scroll_state: ScrollbarState,
     pub table_state: TableState,
     pub selected_index: usize,
+    indices: Vec<usize>,
 }
 
 impl ScrollingTableState {
@@ -57,7 +58,32 @@ impl ScrollingTableState {
             scroll_state: ScrollbarState::new(data_len).position(0),
             table_state: TableState::default().with_selected(0),
             selected_index: 0,
+            indices: (0..data_len).collect(),
         }
+    }
+
+    pub fn apply_search<T, F>(&mut self, items: &[T], mut is_match: F)
+    where
+        F: FnMut(&T) -> bool,
+    {
+        self.indices = items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| is_match(*item))
+            .map(|(index, _)| index)
+            .collect();
+
+        self.data_len = self.indices.len();
+        self.select_index(0);
+    }
+
+    pub fn get_selected<'a, T>(&self, items: &'a [T]) -> Option<&'a T> {
+        let original_index = self.indices.get(self.selected_index)?;
+        items.get(*original_index)
+    }
+
+    pub fn iter_visible<'a, T>(&'a self, items: &'a [T]) -> impl Iterator<Item = &'a T> {
+        self.indices.iter().filter_map(move |&i| items.get(i))
     }
 
     fn select_index(&mut self, index: usize) {

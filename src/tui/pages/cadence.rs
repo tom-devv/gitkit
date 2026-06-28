@@ -10,7 +10,7 @@ use ratatui::{
 use crate::{
     git::{kit::KitRepo, metrics::cadence::CadenceData},
     tui::{
-        ACCENT, Renderable,
+        ACCENT, Renderable, Searchable,
         widgets::{
             activity_table::ActivityTable,
             scroll_table::{ScrollingTable, ScrollingTableState},
@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug)]
 pub struct CadencePage {
     pub data: CadenceData,
-    pub scrolling_table_state: ScrollingTableState,
+    pub view_state: ScrollingTableState,
 }
 
 impl Renderable for CadencePage {
@@ -57,15 +57,14 @@ impl CadencePage {
         let data_len = data.author_details.len();
         Self {
             data,
-            scrolling_table_state: ScrollingTableState::new(data_len),
+            view_state: ScrollingTableState::new(data_len),
         }
     }
 
     fn chart(&self, frame: &mut Frame, area: Rect) {
         let mut authors: Vec<(&String, &f32)> = self
-            .data
-            .author_details
-            .iter()
+            .view_state
+            .iter_visible(&self.data.author_details)
             .map(|ac| (&ac.name, &ac.commits_per_week))
             .collect();
         authors.sort_by(|a, b| a.1.partial_cmp(b.1).unwrap());
@@ -95,9 +94,8 @@ impl CadencePage {
         let widths = [Constraint::Percentage(50), Constraint::Percentage(30)];
 
         let rows: Vec<Row> = self
-            .data
-            .author_details
-            .iter()
+            .view_state
+            .iter_visible(&self.data.author_details)
             .map(|item| {
                 Row::new(vec![
                     Cell::from(item.name.clone())
@@ -114,21 +112,12 @@ impl CadencePage {
             .row_highlight_style(ACCENT)
             .highlight_symbol("> ");
 
-        frame.render_stateful_widget(
-            ScrollingTable::new(table),
-            area,
-            &mut self.scrolling_table_state,
-        );
+        frame.render_stateful_widget(ScrollingTable::new(table), area, &mut self.view_state);
     }
 
     pub fn more_info(&self, frame: &mut Frame, area: Rect) {
-        let details = match self
-            .data
-            .author_details
-            .get(self.scrolling_table_state.selected_index)
-        {
-            Some(details) => details,
-            None => return,
+        let Some(details) = self.view_state.get_selected(&self.data.author_details) else {
+            return;
         };
 
         frame.render_widget(
@@ -174,13 +163,24 @@ impl CadencePage {
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
-        self.scrolling_table_state.handle_scroll(&key_event);
-        // match key_event.code {
-        //     _ => {}
-        // };
+        self.view_state.handle_scroll(&key_event);
     }
 
     pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
-        self.scrolling_table_state.handle_mouse(&mouse_event);
+        self.view_state.handle_mouse(&mouse_event);
+    }
+}
+
+impl Searchable for CadencePage {
+    fn searched(&mut self, value: &str) {
+        self.update(value);
+    }
+
+    fn update(&mut self, value: &str) {
+        let value = value.to_lowercase();
+        self.view_state
+            .apply_search(&self.data.author_details, |details| {
+                details.name.to_lowercase().contains(&value)
+            });
     }
 }

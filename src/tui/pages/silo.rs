@@ -8,17 +8,16 @@ use ratatui::{
 };
 
 use crate::{
-    git::kit::KitRepo,
-    git::metrics::silo::SiloData,
+    git::{kit::KitRepo, metrics::silo::SiloData},
     tui::{
-        ACCENT, Renderable,
+        ACCENT, Renderable, Searchable,
         widgets::scroll_table::{ScrollingTable, ScrollingTableState},
     },
 };
 
 pub struct SiloPage {
     pub data: SiloData,
-    pub scrolling_table_state: ScrollingTableState,
+    pub view_state: ScrollingTableState,
 }
 
 impl Renderable for SiloPage {
@@ -35,28 +34,40 @@ impl Renderable for SiloPage {
     }
 }
 
+impl Searchable for SiloPage {
+    fn searched(&mut self, value: &str) {
+        self.update(value);
+    }
+
+    fn update(&mut self, value: &str) {
+        let value = value.to_lowercase();
+        self.view_state.apply_search(&self.data.files, |file| {
+            file.file.to_lowercase().contains(&value)
+        });
+    }
+}
+
 impl SiloPage {
     pub fn new(data: SiloData) -> Self {
         let data_len = data.files.len();
         Self {
             data,
-            scrolling_table_state: ScrollingTableState::new(data_len),
+            view_state: ScrollingTableState::new(data_len),
         }
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
-        self.scrolling_table_state.handle_scroll(&key_event);
+        self.view_state.handle_scroll(&key_event);
     }
 
     pub fn handle_mouse(&mut self, mouse_event: MouseEvent) {
-        self.scrolling_table_state.handle_mouse(&mouse_event);
+        self.view_state.handle_mouse(&mouse_event);
     }
 
     pub fn render_churn_table(&mut self, frame: &mut Frame, area: Rect) {
         let rows: Vec<Row> = self
-            .data
-            .files
-            .iter()
+            .view_state
+            .iter_visible(&self.data.files)
             .map(|churn| {
                 let ratio = churn.risk as f64 / 100.0;
                 let bar = generate_silo_bar(ratio, 20); // TODO change fixed width 20
@@ -90,11 +101,7 @@ impl SiloPage {
             .row_highlight_style(ACCENT)
             .highlight_symbol("> ");
 
-        frame.render_stateful_widget(
-            ScrollingTable::new(table),
-            area,
-            &mut self.scrolling_table_state,
-        );
+        frame.render_stateful_widget(ScrollingTable::new(table), area, &mut self.view_state);
     }
 
     pub fn render_churn_info(&self, frame: &mut Frame, area: Rect) {
@@ -105,21 +112,16 @@ impl SiloPage {
         let left = chunks[0];
         let right = chunks[1];
 
-        self.render_foo(frame, left);
+        self.render_file_info(frame, left);
 
         let block = Block::bordered();
 
         frame.render_widget(block, right);
     }
 
-    pub fn render_foo(&self, frame: &mut Frame, area: Rect) {
-        let silo = match self
-            .data
-            .files
-            .get(self.scrolling_table_state.selected_index)
-        {
-            Some(silo) => silo,
-            None => return,
+    pub fn render_file_info(&self, frame: &mut Frame, area: Rect) {
+        let Some(silo) = self.view_state.get_selected(&self.data.files) else {
+            return;
         };
 
         let mut top_contributors: Vec<(&String, &usize)> = silo.author_churn.iter().collect();

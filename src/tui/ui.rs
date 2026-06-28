@@ -5,12 +5,19 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Padding, Tabs, TitlePosition},
+    widgets::{
+        Block,
+        BorderType::{self, Thick},
+        Borders, Clear, Padding, Paragraph, Tabs, TitlePosition,
+    },
 };
 
 use crate::tui::{
-    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable, pages::Page, state::TuiState,
-    widgets::loading::LoadingWidget,
+    ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable,
+    pages::Page,
+    search::Search,
+    state::{Mode::Searching, TuiState},
+    widgets::{loading::LoadingWidget, search_box::SearchBox},
 };
 
 pub fn render(frame: &mut Frame, state: &mut TuiState) {
@@ -38,6 +45,9 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
         Page::Cadence => state.cadence.as_mut().unwrap().render(frame, content_area),
         Page::Silo => state.silo.as_mut().unwrap().render(frame, content_area),
     }
+
+    // render last - on top of content
+    render_search_box(frame, content_area, state);
 }
 
 fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect {
@@ -51,6 +61,22 @@ fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect 
 
     frame.render_widget(&border, chunk);
     border.inner(chunk)
+}
+
+fn render_search_box(frame: &mut Frame, inner: Rect, state: &TuiState) {
+    if state.mode != Searching {
+        return;
+    }
+
+    let middle = inner
+        .centered_horizontally(Constraint::Max(40))
+        .centered_vertically(Constraint::Max(3));
+    frame.render_widget(SearchBox::new(state), middle);
+
+    frame.set_cursor_position((
+        middle.x + 1 + state.search.input.visual_cursor() as u16,
+        middle.y + 1,
+    ));
 }
 
 // keybind code from binsider
