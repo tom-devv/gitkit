@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use git2::{Patch, TreeWalkMode, TreeWalkResult};
+use git2::{DiffOptions, Patch, TreeWalkMode, TreeWalkResult};
 
 use crate::error::Result;
 use crate::git::kit::KitRepo;
@@ -57,10 +57,18 @@ impl SiloData {
     pub fn accumulate_churn(repo: &KitRepo) -> Result<HashMap<String, HashMap<String, usize>>> {
         let mut churn_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
 
-        for (commit, diff) in repo.iter_diff_history()? {
-            let author_name = commit.email;
+        let mut diff_opts = DiffOptions::new();
+        diff_opts
+            .skip_binary_check(true)
+            .ignore_filemode(true)
+            .ignore_submodules(true)
+            .enable_fast_untracked_dirs(true);
 
-            // TODO ENSURE NO DIVISION HERE
+        for (commit, diff) in repo.iter_diff_history(Some(diff_opts))? {
+            // if let Some(date) = commit.date {
+            //     date.years_since(Utc::now())
+            // }
+            let author_name = commit.email;
 
             for i in 0..diff.deltas().len() {
                 if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {

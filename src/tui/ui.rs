@@ -7,15 +7,14 @@ use ratatui::{
     text::{Line, Span},
     widgets::{
         Block,
-        BorderType::{self, Thick},
-        Borders, Clear, Padding, Paragraph, Tabs, TitlePosition,
+        BorderType::{self},
+        Borders, Padding, Tabs, TitlePosition,
     },
 };
 
 use crate::tui::{
     ACCENT, ACCENT_TEXT, GRAY_BORDER_COLOR, Renderable,
     pages::Page,
-    search::Search,
     state::{Mode::Searching, TuiState},
     widgets::{loading::LoadingWidget, search_box::SearchBox},
 };
