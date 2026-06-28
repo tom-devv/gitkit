@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use git2::{DiffOptions, Oid, Patch, Repository, TreeWalkMode, TreeWalkResult};
+use git2::{DiffOptions, Oid, Patch, TreeWalkMode, TreeWalkResult};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::error::Result;

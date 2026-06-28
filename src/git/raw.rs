@@ -15,7 +15,7 @@ impl KitRepo {
             .filter_map(move |oid| repo_ref.find_commit(oid).ok()))
     }
 
-    pub(in crate::git) fn get_raw_author_commits(
+    pub(in crate::git) fn _get_raw_author_commits(
         &self,
         email: &str,
     ) -> Result<impl Iterator<Item = Commit<'_>>, git2::Error> {
