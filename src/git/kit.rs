@@ -94,6 +94,27 @@ impl<'repo> KitRepo {
         Ok(iter)
     }
 
+    pub fn get_diff_from_oids<'a>(
+        &'a self,
+        parent_oid: Option<Oid>,
+        current_oid: Oid,
+        opts: Option<&mut DiffOptions>,
+    ) -> Result<Diff<'a>, git2::Error> {
+        let current_commit = self.inner.find_commit(current_oid)?;
+        let current_tree = current_commit.tree()?;
+
+        let parent_tree = match parent_oid {
+            Some(oid) => {
+                let p_commit = self.inner.find_commit(oid)?;
+                Some(p_commit.tree()?)
+            }
+            None => None,
+        };
+
+        self.inner
+            .diff_tree_to_tree(parent_tree.as_ref(), Some(&current_tree), opts)
+    }
+
     pub fn get_diff(
         &self,
         parent: Option<&Commit>,
