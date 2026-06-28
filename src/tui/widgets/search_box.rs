@@ -1,11 +1,8 @@
-use ratatui::{
-    layout::Constraint,
-    widgets::{Block, BorderType::Thick, Clear, Paragraph, Widget},
-};
+use ratatui::widgets::{Block, BorderType::Thick, Clear, Paragraph, Widget};
 
 use crate::tui::{
     ACCENT,
-    state::{Mode::Searching, TuiState},
+    state::TuiState,
 };
 
 pub struct SearchBox<'state> {

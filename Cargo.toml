@@ -20,6 +20,7 @@ tui-input = { version = "0.15.3", features = ["crossterm"], default-features = f
 thiserror = "2"
 crossterm = "0.29.0"
 clap = { version = "4.6.1", features = ["derive"] }
+rayon = "1.12.0"
 
 
 [dev-dependencies]

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use git2::{Patch, TreeWalkMode, TreeWalkResult};
+use git2::{DiffOptions, Oid, Patch, TreeWalkMode, TreeWalkResult};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::error::Result;
 use crate::git::kit::KitRepo;
@@ -55,35 +56,87 @@ impl SiloData {
     }
 
     pub fn accumulate_churn(repo: &KitRepo) -> Result<HashMap<String, HashMap<String, usize>>> {
-        let mut churn_map: HashMap<String, HashMap<String, usize>> = HashMap::new();
+        let commit_pairs = Self::extract_commit_oids(repo)?;
+        let repo_path = repo.inner.path().to_path_buf();
 
-        for (commit, diff) in repo.iter_diff_history()? {
-            let author_name = commit.email;
+        let merged_churn_map = commit_pairs
+            .par_iter()
+            .fold(
+                || HashMap::new(),
+                |mut local_map: HashMap<String, HashMap<String, usize>>,
+                 (commit_oid, parent_oid, author_email)| {
+                    if let Ok(local_repo) = KitRepo::open(&repo_path) {
+                        let mut diff_opts = DiffOptions::new();
+                        diff_opts
+                            .skip_binary_check(true)
+                            .ignore_filemode(true)
+                            .ignore_submodules(true)
+                            .enable_fast_untracked_dirs(true);
 
-            // TODO ENSURE NO DIVISION HERE
+                        if let Ok(diff) = local_repo.get_diff_from_oids(
+                            Some(*parent_oid),
+                            *commit_oid,
+                            Some(&mut diff_opts),
+                        ) {
+                            for i in 0..diff.deltas().len() {
+                                if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {
+                                    if let Some(path) = patch.delta().new_file().path() {
+                                        let file_path = path.to_string_lossy().to_string();
 
-            for i in 0..diff.deltas().len() {
-                if let Ok(Some(patch)) = Patch::from_diff(&diff, i) {
-                    if let Some(path) = patch.delta().new_file().path() {
-                        let file_path = path.to_string_lossy().to_string();
-
-                        if let Ok((insertions, deletions, _)) = patch.line_stats() {
-                            let churn = insertions + deletions;
-
-                            if churn > 0 {
-                                *churn_map
-                                    .entry(file_path)
-                                    .or_default()
-                                    .entry(author_name.clone())
-                                    .or_default() += churn;
+                                        if let Ok((insertions, deletions, _)) = patch.line_stats() {
+                                            let churn = insertions + deletions;
+                                            if churn > 0 {
+                                                *local_map
+                                                    .entry(file_path)
+                                                    .or_default()
+                                                    .entry(author_email.clone())
+                                                    .or_default() += churn;
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                        }
+                    }
+
+                    local_map
+                },
+            )
+            .reduce(
+                || HashMap::new(),
+                |mut map_a, map_b| {
+                    for (file, authors_b) in map_b {
+                        let authors_a = map_a.entry(file).or_default();
+                        for (author, churn) in authors_b {
+                            *authors_a.entry(author).or_default() += churn;
+                        }
+                    }
+                    map_a
+                },
+            );
+
+        Ok(merged_churn_map)
+    }
+
+    fn extract_commit_oids(repo: &KitRepo) -> Result<Vec<(Oid, Oid, String)>> {
+        let mut pairs = Vec::new();
+
+        let mut revwalk = repo.inner.revwalk()?;
+        revwalk.push_head()?;
+
+        for oid_result in revwalk {
+            if let Ok(oid) = oid_result {
+                if let Ok(commit) = repo.inner.find_commit(oid) {
+                    if commit.parent_count() == 1 {
+                        if let Ok(parent) = commit.parent(0) {
+                            let email = commit.author().email().unwrap_or("Unknown").to_string();
+                            pairs.push((commit.id(), parent.id(), email));
                         }
                     }
                 }
             }
         }
-
-        Ok(churn_map)
+        Ok(pairs)
     }
 
     pub fn process_silos(

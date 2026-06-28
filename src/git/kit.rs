@@ -94,6 +94,27 @@ impl<'repo> KitRepo {
         Ok(iter)
     }
 
+    pub fn get_diff_from_oids<'a>(
+        &'a self,
+        parent_oid: Option<Oid>,
+        current_oid: Oid,
+        opts: Option<&mut DiffOptions>,
+    ) -> Result<Diff<'a>, git2::Error> {
+        let current_commit = self.inner.find_commit(current_oid)?;
+        let current_tree = current_commit.tree()?;
+
+        let parent_tree = match parent_oid {
+            Some(oid) => {
+                let p_commit = self.inner.find_commit(oid)?;
+                Some(p_commit.tree()?)
+            }
+            None => None,
+        };
+
+        self.inner
+            .diff_tree_to_tree(parent_tree.as_ref(), Some(&current_tree), opts)
+    }
+
     pub fn get_diff(
         &self,
         parent: Option<&Commit>,
@@ -125,11 +146,14 @@ impl<'repo> KitRepo {
     // get all diffs exlcuding merge commits
     pub fn iter_diff_history<'a>(
         &'a self,
+        opts: Option<DiffOptions>,
     ) -> Result<impl Iterator<Item = (KitCommit, Diff<'a>)> + 'a, git2::Error> {
         let mut revwalk = self.inner.revwalk()?;
         revwalk.push_head()?;
 
         let repo = &self.inner;
+
+        let mut diff_opts = opts.unwrap_or_default();
 
         let diff_iter = revwalk.filter_map(move |oid_result| {
             let oid = oid_result.ok()?;
@@ -148,14 +172,11 @@ impl<'repo> KitRepo {
                 None
             };
 
-            let mut diff_options = DiffOptions::new();
-            diff_options.ignore_whitespace(true);
-
             let diff = repo
                 .diff_tree_to_tree(
                     parent_tree.as_ref(),
                     Some(&commit_tree),
-                    Some(&mut diff_options),
+                    Some(&mut diff_opts),
                 )
                 .ok()?;
 
