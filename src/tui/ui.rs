@@ -64,6 +64,10 @@ fn render_outer_frame(frame: &mut Frame, chunk: Rect, state: &TuiState) -> Rect 
 }
 
 fn render_search_box(frame: &mut Frame, inner: Rect, state: &TuiState) {
+    if state.mode != Searching {
+        return;
+    }
+
     let middle = inner
         .centered_horizontally(Constraint::Max(40))
         .centered_vertically(Constraint::Max(3));

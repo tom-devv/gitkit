@@ -20,10 +20,6 @@ impl<'state> SearchBox<'state> {
 
 impl Widget for SearchBox<'_> {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-        if self.state.mode != Searching {
-            return;
-        }
-
         Clear.render(area, buf);
 
         let search_block = Block::bordered()
