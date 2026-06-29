@@ -1,6 +1,6 @@
 [package]
 name = "gitkit-cli"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Get insightful metrics on your git repository"
 license = "MIT"
@@ -8,9 +8,16 @@ readme = "README.md"
 authors = ["tom-devv"]
 repository = "https://github.com/tom-devv/gitkit"
 
+
+[package.metadata.release]
+push = true
+pre-release-commit-message = "Release {{version}}"
+
 [[bin]]
 name = "gitkit"
 path = "src/main.rs"
+
+
 
 [dependencies]
 chrono = "0.4.44"
