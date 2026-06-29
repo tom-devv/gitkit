@@ -9,7 +9,7 @@ GitKit is a fast, terminal-based repository explorer. It visualizes developer be
 <div align="center">
 
 
-   <img width="1920" height="978" src="https://github.com/user-attachments/assets/97843db2-8d95-46e9-93f9-727728549655" alt="GitKit Demo"      style="max-width: 100%; height: auto;" />
+   <img width="1920" height="978" src="./assets/gitkit_demo.gif" alt="GitKit Demo"      style="max-width: 100%; height: auto;" />
 </div>
 
 
