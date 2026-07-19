@@ -10,7 +10,7 @@ repository = "https://github.com/tom-devv/gitkit"
 
 
 [package.metadata.release]
-push = true
+push = false
 pre-release-commit-message = "Release {{version}}"
 
 [[bin]]
