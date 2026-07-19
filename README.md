@@ -41,7 +41,7 @@ You can find compiled binaries on the [Github Releases page](https://github.com/
 
 - [macOS Intel](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-apple-darwin.tar.gz)
 
-- [Linux x86-64](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-unknown-linux-gnu.tar.gz)
+- [Linux x86-64](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-unknown-linux-musl.tar.gz)
 
 - [Windows x86-64](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-pc-windows-msvc.zip)
 
