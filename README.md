@@ -33,6 +33,22 @@ You can use cargo to install gitkit:
 cargo install gitkit-cli
 ```
 
+You can find compiled binaries on the [Github Releases page](https://github.com/tom-devv/gitkit/releases/latest) for:
+
+
+- [macOS Silicon](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-aarch64-apple-darwin.tar.gz)
+
+
+- [macOS Intel](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-apple-darwin.tar.gz)
+
+- [Linux x86-64](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-unknown-linux-gnu.tar.gz)
+
+- [Windows x86-64](https://github.com/tom-devv/gitkit/releases/latest/download/gitkit-x86_64-pc-windows-msvc.zip)
+
+    - _Note: double clicking the executable search for a git repo in the directory where it was opened. se cmd to specify a directory_
+
+
+
 ## Usage
 
 Usage is simple:
