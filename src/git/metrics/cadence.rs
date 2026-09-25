@@ -107,7 +107,11 @@ impl CadenceData {
             });
         }
 
-        author_details.sort_by(|a, b| b.commits_per_week.partial_cmp(&a.commits_per_week).unwrap());
+        author_details.sort_by(|a, b| {
+            b.commits_per_week
+                .total_cmp(&a.commits_per_week)
+                .then_with(|| a.name.cmp(&b.name))
+        });
 
         CadenceData {
             global_commits_per_week,

@@ -59,6 +59,65 @@ gitkit [TARGET_PATH]
 
 `[TARGET_PATH]` is an optional argument and defaults to the current directory if not specified
 
+### JSON output
+
+Use `--json` to print the metrics to stdout instead of opening the TUI, e.g. for scripts or CI:
+
+```shell
+gitkit --json [TARGET_PATH]
+```
+
+Add `--only` with a comma separated list of `home`, `cadence` and `silo` to only compute those sections. Skipping `silo` is much faster on large repositories, since it diffs the whole history:
+
+```shell
+gitkit --json --only home,cadence
+```
+
+The output looks like this (arrays shortened):
+
+```json
+{
+  "gitkit_version": "0.1.5",
+  "home": {
+    "repo_name": "gitkit",
+    "current_branch": "main",
+    "total_commits": 1823,
+    "first_commit": { "id": "5045…", "author_email": "dev@example.com", "date": "2025-09-30T15:17:29Z", "timestamp": 1759245449 },
+    "last_commit": { "id": "7be0…", "author_email": "dev@example.com", "date": "2026-04-28T19:44:01Z", "timestamp": 1777405441 },
+    "status": [{ "path": "src/main.rs", "index": null, "worktree": "modified" }]
+  },
+  "cadence": {
+    "global_commits_per_week": 60.7,
+    "authors": [{
+      "email": "dev@example.com",
+      "total_commits": 532,
+      "commits_per_week": 17.7,
+      "repo_share_percent": 29.2,
+      "first_commit": "2025-09-30T15:17:29Z",
+      "activity": { "mon": [0, 0, "…24 hourly counts (UTC)"], "tue": [], "wed": [], "thu": [], "fri": [], "sat": [], "sun": [] }
+    }]
+  },
+  "silo": {
+    "files": [{
+      "path": "src/main.rs",
+      "gatekeeper": "dev@example.com",
+      "contributors": 1,
+      "risk_percent": 100,
+      "total_churn": 576,
+      "authors": [{ "email": "dev@example.com", "churn": 576 }]
+    }]
+  }
+}
+```
+
+Authors and files are sorted the same way as in the TUI: authors by commits per week, and files by silo risk and then churn.
+
+For example, to list files where one person wrote more than 90% of the churn:
+
+```shell
+gitkit --json --only silo | jq -r '.silo.files[] | select(.risk_percent > 90) | .path'
+```
+
 ## Keybindings
 
 GitKit is built for fast keyboard navigation:

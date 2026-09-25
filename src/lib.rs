@@ -10,6 +10,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use crate::{
     error::Result,
     git::kit::KitRepo,
+    json::Section,
     tui::{
         search::Search,
         state::{
@@ -23,6 +24,7 @@ use crate::{
 
 pub mod error;
 pub mod git;
+pub mod json;
 pub mod tui;
 pub mod worker;
 
@@ -31,6 +33,14 @@ pub mod worker;
 pub struct KitArgs {
     #[arg(default_value = ".")]
     target_path: String,
+
+    /// Print the metrics as JSON to stdout instead of opening the TUI
+    #[arg(long)]
+    pub json: bool,
+
+    /// Only compute these sections (comma separated). Defaults to all
+    #[arg(long, value_enum, value_delimiter = ',', requires = "json")]
+    pub only: Vec<Section>,
 
     #[arg(long, hide = true)]
     pub debug: bool,
@@ -43,6 +53,10 @@ pub fn run(args: KitArgs) -> Result<()> {
         println!("Debug Mode\n");
 
         return Ok(());
+    }
+
+    if args.json {
+        return json::print_report(&repo, &args.only);
     }
 
     let backend = CrosstermBackend::new(io::stdout());
