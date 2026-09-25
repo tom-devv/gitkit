@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Timelike, Utc};
 
 use crate::git::kit::KitRepo;
-use crate::git::model::KitCommit;
+
+// commit counts indexed by [weekday from monday][hour of day]
+pub type Activity = [[u32; 24]; 7];
 
 #[derive(Debug, Clone)]
 pub struct CadenceData {
@@ -18,32 +20,53 @@ pub struct AuthorDetails {
     pub first_commit: DateTime<Utc>,
     pub total_commits: u32,
     pub repo_share: f64,
-    pub all_commits: Vec<KitCommit>,
+    pub activity: Activity,
+}
+
+// running totals per author while walking history
+struct AuthorAcc {
+    total: u32,
+    // commit iter is reversed, so the last one seen is the earliest
+    earliest: Option<DateTime<Utc>>,
+    activity: Activity,
 }
 
 impl CadenceData {
     pub fn new(repo: &KitRepo) -> Self {
-        let mut author_map: HashMap<String, Vec<KitCommit>> = HashMap::new();
+        let mut author_map: HashMap<String, AuthorAcc> = HashMap::new();
         let mut total_repo_commits = 0;
 
         let mut global_earliest: Option<DateTime<Utc>> = None;
         let mut global_latest: Option<DateTime<Utc>> = None;
 
-        if let Ok(commits) = repo.iter_commits() {
+        if let Ok(commits) = repo.iter_raw_commits() {
             for commit in commits {
                 total_repo_commits += 1;
 
-                if let Some(date) = commit.date {
+                let date = DateTime::from_timestamp_secs(commit.time().seconds());
+                if let Some(date) = date {
                     global_earliest = Some(global_earliest.map_or(date, |e| e.min(date)));
                     global_latest = Some(global_latest.map_or(date, |l| l.max(date)));
                 }
 
-                let author_key = commit.email.clone();
+                let author = commit.author();
+                let email = author.email().unwrap_or("Unknown");
+                // only allocate the key the first time we see an author
+                let acc = match author_map.get_mut(email) {
+                    Some(acc) => acc,
+                    None => author_map.entry(email.to_string()).or_insert(AuthorAcc {
+                        total: 0,
+                        earliest: None,
+                        activity: [[0; 24]; 7],
+                    }),
+                };
 
-                author_map
-                    .entry(author_key)
-                    .or_insert_with(Vec::new)
-                    .push(commit);
+                acc.total += 1;
+                acc.earliest = date;
+                if let Some(date) = date {
+                    acc.activity[date.weekday().num_days_from_monday() as usize]
+                        [date.hour() as usize] += 1;
+                }
             }
         }
 
@@ -57,8 +80,8 @@ impl CadenceData {
 
         let mut author_details = Vec::with_capacity(author_map.len());
 
-        for (author_name, commits) in author_map {
-            let author_total = commits.len() as u32;
+        for (author_name, acc) in author_map {
+            let author_total = acc.total;
 
             let repo_share = if total_repo_commits > 0 {
                 (author_total as f64 / total_repo_commits as f64) * 100.0
@@ -66,7 +89,7 @@ impl CadenceData {
                 0.0
             };
 
-            let first_commit = commits.last().and_then(|c| c.date).unwrap_or_default();
+            let first_commit = acc.earliest.unwrap_or_default();
 
             let commits_per_week = if lifespan_weeks > 0.0 {
                 (author_total as f32) / lifespan_weeks
@@ -80,7 +103,7 @@ impl CadenceData {
                 first_commit,
                 total_commits: author_total,
                 repo_share,
-                all_commits: commits,
+                activity: acc.activity,
             });
         }
 

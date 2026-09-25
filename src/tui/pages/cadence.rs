@@ -159,7 +159,7 @@ impl CadencePage {
 
         frame.render_widget(paragraph, layout[0]);
 
-        frame.render_widget(ActivityTable::new(&details.all_commits), layout[1]);
+        frame.render_widget(ActivityTable::new(&details.activity), layout[1]);
     }
 
     pub fn handle_key(&mut self, key_event: KeyEvent, _repo: &KitRepo) {
