@@ -226,7 +226,8 @@ impl SiloData {
             let mut top_churn = 0;
 
             for (author, churn) in &author_churn {
-                if *churn > top_churn {
+                // ties go to the alphabetically first author so output is stable
+                if *churn > top_churn || (*churn == top_churn && *author < gatekeeper) {
                     top_churn = *churn;
                     gatekeeper = author.clone();
                 }
@@ -248,7 +249,12 @@ impl SiloData {
             });
         }
 
-        active_files.sort_by(|a, b| b.risk.cmp(&a.risk).then(b.total_churn.cmp(&a.total_churn)));
+        active_files.sort_by(|a, b| {
+            b.risk
+                .cmp(&a.risk)
+                .then(b.total_churn.cmp(&a.total_churn))
+                .then_with(|| a.file.cmp(&b.file))
+        });
 
         active_files
     }
