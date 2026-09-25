@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use chrono::{DateTime, Datelike, Timelike, Utc, Weekday};
+use chrono::Weekday;
 use ratatui::{
     layout::{Constraint, Layout, Offset},
     style::{Color, Style},
@@ -8,7 +6,7 @@ use ratatui::{
     widgets::{Block, Widget},
 };
 
-use crate::git::model::KitCommit;
+use crate::git::metrics::cadence::Activity;
 
 const DAYS_IN_ORDER: [Weekday; 7] = [
     Weekday::Mon,
@@ -20,49 +18,27 @@ const DAYS_IN_ORDER: [Weekday; 7] = [
     Weekday::Sun,
 ];
 
-pub struct ActivityTable<'c> {
-    pub lines: Vec<Line<'c>>,
+pub struct ActivityTable {
+    pub lines: Vec<Line<'static>>,
 }
-impl<'c> ActivityTable<'c> {
-    pub fn new(commits: &'c [KitCommit]) -> Self {
-        let mut weekday_commits: HashMap<Weekday, Vec<DateTime<Utc>>> = HashMap::new();
-        for commit in commits {
-            if let Some(date) = commit.date {
-                let weekday = date.weekday();
-
-                weekday_commits.entry(weekday).or_default().push(date);
-            }
-        }
-
-        let lines: Vec<Line<'c>> = DAYS_IN_ORDER
-            .iter()
-            .map(|day| {
-                let day_commits = weekday_commits.get(day).map(Vec::as_slice).unwrap_or(&[]);
-                Self::day_bar(day, day_commits)
-            })
-            .collect();
+impl ActivityTable {
+    pub fn new(activity: &Activity) -> Self {
+        let lines = activity.iter().map(Self::day_bar).collect();
 
         Self { lines }
     }
 
-    fn day_bar(_day: &Weekday, day_commits: &[DateTime<Utc>]) -> Line<'c> {
-        let mut commits_per_hour = [0u32; 48];
-        for commit in day_commits {
-            let hour = commit.hour() as usize;
-            commits_per_hour[hour] += 1;
-        }
+    fn day_bar(commits_per_hour: &[u32; 24]) -> Line<'static> {
         let peak_value = *commits_per_hour.iter().max().unwrap_or(&0);
-        let mut spans: Vec<Span> = vec![];
-
-        for &cell_value in commits_per_hour.iter() {
-            let cell = BarCell::new(cell_value, peak_value);
-            spans.push(cell.to_span());
-        }
+        let spans: Vec<Span> = commits_per_hour
+            .iter()
+            .map(|&cell_value| BarCell::new(cell_value, peak_value).to_span())
+            .collect();
         Line::from(spans)
     }
 }
 
-impl<'c> Widget for ActivityTable<'c> {
+impl Widget for ActivityTable {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let vertical_limit = Layout::vertical([Constraint::Length(9)]).split(area);
 

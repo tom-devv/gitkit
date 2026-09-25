@@ -1,3 +1,5 @@
+use git2::Oid;
+
 use crate::git::{kit::KitRepo, model::KitCommit, status::KitStatus};
 
 pub struct HomeData {
@@ -21,21 +23,9 @@ impl HomeData {
             .current_branch()
             .unwrap_or_else(|_| "not found".to_owned());
 
-        let total_commits: u32 = repo
-            .iter_commits()
-            .map_or(0, |iter| iter.count())
-            .try_into()
-            .unwrap_or(u32::MAX);
+        let (total_commits, first_commit, last_commit) = Self::walk_history(repo);
 
         let status = repo.get_status();
-
-        // commit iter is reversed
-        let first_commit: Option<KitCommit> =
-            repo.iter_commits().map_or(None, |commits| commits.last());
-
-        let last_commit = repo
-            .iter_commits()
-            .map_or(None, |mut commits| commits.next());
 
         HomeData {
             repo_name,
@@ -45,5 +35,36 @@ impl HomeData {
             first_commit,
             last_commit,
         }
+    }
+
+    // single pass over the history: count oids and only build
+    // KitCommits for the two ends (commit iter is reversed)
+    fn walk_history(repo: &KitRepo) -> (u32, Option<KitCommit>, Option<KitCommit>) {
+        let Ok(mut revwalk) = repo.inner.revwalk() else {
+            return (0, None, None);
+        };
+        if revwalk.push_head().is_err() {
+            return (0, None, None);
+        }
+
+        let mut total: usize = 0;
+        let mut newest: Option<Oid> = None;
+        let mut oldest: Option<Oid> = None;
+        for oid in revwalk.flatten() {
+            newest.get_or_insert(oid);
+            oldest = Some(oid);
+            total += 1;
+        }
+
+        let to_commit = |oid: Option<Oid>| {
+            oid.and_then(|oid| repo.inner.find_commit(oid).ok())
+                .map(|c| KitCommit::from_git2(&c))
+        };
+
+        (
+            total.try_into().unwrap_or(u32::MAX),
+            to_commit(oldest),
+            to_commit(newest),
+        )
     }
 }

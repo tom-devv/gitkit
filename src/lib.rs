@@ -81,21 +81,29 @@ pub fn tui(
     worker.refresh();
 
     let mut state = TuiState::new();
+    let mut dirty = true;
 
     while !state.is_quit && !args.debug {
-        terminal.draw(|frame| render(frame, &mut state))?;
+        // only redraw when something changed, or to animate the loading screen
+        if dirty || state.is_loading() {
+            terminal.draw(|frame| render(frame, &mut state))?;
+            dirty = false;
+        }
 
         if state.refresh {
             state.refresh();
             worker.refresh();
+            dirty = true;
         }
 
         // when update chan gets message update state
-        if let Ok(update) = worker.update_rx.try_recv() {
+        while let Ok(update) = worker.update_rx.try_recv() {
             state.update(update);
+            dirty = true;
         }
 
         if event::poll(Duration::from_millis(16))? {
+            dirty = true;
             match event::read()? {
                 Event::Key(key) => match state.mode {
                     Normal => {
