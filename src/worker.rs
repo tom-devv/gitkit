@@ -2,7 +2,7 @@ use std::{sync::mpsc, thread};
 
 use crate::{
     git::kit::KitRepo,
-    git::metrics::{cadence::CadenceData, home::HomeData, silo::SiloData},
+    git::metrics::{branches::BranchData, cadence::CadenceData, home::HomeData, silo::SiloData},
 };
 
 #[derive(Clone, Copy)]
@@ -10,14 +10,21 @@ enum MetricTask {
     Home,
     Cadence,
     Silo,
+    Branches,
 }
 
-const METRIC_TASKS: [MetricTask; 3] = [MetricTask::Home, MetricTask::Cadence, MetricTask::Silo];
+const METRIC_TASKS: [MetricTask; 4] = [
+    MetricTask::Home,
+    MetricTask::Cadence,
+    MetricTask::Silo,
+    MetricTask::Branches,
+];
 
 pub enum DataUpdate {
     Home(HomeData),
     Cadence(CadenceData),
     Silo(SiloData),
+    Branches(BranchData),
 }
 #[derive(Clone, Copy)]
 pub enum WorkerCommand {
@@ -50,6 +57,9 @@ impl Worker {
                                 MetricTask::Home => DataUpdate::Home(HomeData::new(&repo)),
                                 MetricTask::Cadence => DataUpdate::Cadence(CadenceData::new(&repo)),
                                 MetricTask::Silo => DataUpdate::Silo(SiloData::new(&repo)),
+                                MetricTask::Branches => {
+                                    DataUpdate::Branches(BranchData::new(&repo))
+                                }
                             };
 
                             let _ = thread_update_tx.send(update);
