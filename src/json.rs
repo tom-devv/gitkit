@@ -9,6 +9,7 @@ use crate::{
     git::{
         kit::KitRepo,
         metrics::{
+            branches::{BranchData, BranchKind, STALE_AFTER_DAYS},
             cadence::{Activity, CadenceData},
             home::HomeData,
             silo::SiloData,
@@ -23,6 +24,7 @@ pub enum Section {
     Home,
     Cadence,
     Silo,
+    Branches,
 }
 
 // output schema, kept separate from the metric structs so
@@ -36,6 +38,8 @@ struct Report {
     cadence: Option<CadenceJson>,
     #[serde(skip_serializing_if = "Option::is_none")]
     silo: Option<SiloJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    branches: Option<BranchesJson>,
 }
 
 #[derive(Serialize)]
@@ -114,6 +118,31 @@ struct AuthorChurnJson {
     churn: usize,
 }
 
+#[derive(Serialize)]
+struct BranchesJson {
+    // what ahead/behind/merged are measured against, None if it couldn't be found
+    base: Option<String>,
+    stale_after_days: i64,
+    branches: Vec<BranchJson>,
+}
+
+#[derive(Serialize)]
+struct BranchJson {
+    name: String,
+    kind: &'static str,
+    is_head: bool,
+    status: &'static str,
+    merged: bool,
+    // merged, but as a squash commit, so ahead is still > 0
+    squash_merged: bool,
+    stale: bool,
+    ahead: usize,
+    behind: usize,
+    upstream: Option<String>,
+    upstream_gone: bool,
+    last_commit: CommitJson,
+}
+
 pub fn print_report(repo: &KitRepo, sections: &[Section]) -> Result<()> {
     let wants = |section| sections.is_empty() || sections.contains(&section);
 
@@ -122,6 +151,7 @@ pub fn print_report(repo: &KitRepo, sections: &[Section]) -> Result<()> {
         home: wants(Section::Home).then(|| HomeJson::from(HomeData::new(repo))),
         cadence: wants(Section::Cadence).then(|| CadenceJson::from(CadenceData::new(repo))),
         silo: wants(Section::Silo).then(|| SiloJson::from(SiloData::new(repo))),
+        branches: wants(Section::Branches).then(|| BranchesJson::from(BranchData::new(repo))),
     };
 
     let mut stdout = io::stdout().lock();
@@ -261,5 +291,37 @@ impl From<SiloData> for SiloJson {
             .collect();
 
         Self { files }
+    }
+}
+
+impl From<BranchData> for BranchesJson {
+    fn from(data: BranchData) -> Self {
+        let branches = data
+            .branches
+            .into_iter()
+            .map(|branch| BranchJson {
+                kind: match branch.kind {
+                    BranchKind::Local => "local",
+                    BranchKind::Remote => "remote",
+                },
+                status: branch.status().as_str(),
+                name: branch.name,
+                is_head: branch.is_head,
+                merged: branch.merged,
+                squash_merged: branch.squash_merged,
+                stale: branch.stale,
+                ahead: branch.ahead,
+                behind: branch.behind,
+                upstream: branch.upstream,
+                upstream_gone: branch.upstream_gone,
+                last_commit: CommitJson::from(branch.last_commit),
+            })
+            .collect();
+
+        Self {
+            base: data.base,
+            stale_after_days: STALE_AFTER_DAYS,
+            branches,
+        }
     }
 }

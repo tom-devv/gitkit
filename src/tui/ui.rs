@@ -43,6 +43,7 @@ pub fn render(frame: &mut Frame, state: &mut TuiState) {
         Page::Home => state.home.as_mut().unwrap().render(frame, content_area),
         Page::Cadence => state.cadence.as_mut().unwrap().render(frame, content_area),
         Page::Silo => state.silo.as_mut().unwrap().render(frame, content_area),
+        Page::Branches => state.branches.as_mut().unwrap().render(frame, content_area),
     }
 
     // render last - on top of content

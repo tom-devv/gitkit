@@ -58,6 +58,11 @@ impl Search {
                     action(cadence);
                 }
             }
+            Page::Branches => {
+                if let Some(branches) = state.branches.as_mut() {
+                    action(branches);
+                }
+            }
             Page::Home => {}
         }
     }

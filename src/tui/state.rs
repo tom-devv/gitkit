@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent, MouseEvent};
 use crate::git::kit::KitRepo;
 
 use crate::tui::pages::Page;
+use crate::tui::pages::branches::BranchesPage;
 use crate::tui::pages::cadence::CadencePage;
 use crate::tui::pages::home::HomePage;
 use crate::tui::pages::silo::SiloPage;
@@ -27,6 +28,7 @@ pub struct TuiState {
     pub home: Option<HomePage>,
     pub cadence: Option<CadencePage>,
     pub silo: Option<SiloPage>,
+    pub branches: Option<BranchesPage>,
 }
 
 impl TuiState {
@@ -41,6 +43,7 @@ impl TuiState {
             home: None,
             cadence: None,
             silo: None,
+            branches: None,
         }
     }
 
@@ -51,6 +54,9 @@ impl TuiState {
                 self.cadence = Some(CadencePage::new(cadence_data))
             }
             DataUpdate::Silo(silo_data) => self.silo = Some(SiloPage::new(silo_data)),
+            DataUpdate::Branches(branch_data) => {
+                self.branches = Some(BranchesPage::new(branch_data))
+            }
         }
     }
 
@@ -61,6 +67,7 @@ impl TuiState {
             Page::Home => self.home.is_none(),
             Page::Cadence => self.cadence.is_none(),
             Page::Silo => self.silo.is_none(),
+            Page::Branches => self.branches.is_none(),
         }
     }
 
@@ -113,6 +120,11 @@ impl TuiState {
                         home_page.handle_key(key, repo);
                     }
                 }
+                Page::Branches => {
+                    if let Some(branches_page) = &mut self.branches {
+                        branches_page.handle_key(key, repo);
+                    }
+                }
             },
         }
     }
@@ -133,6 +145,11 @@ impl TuiState {
             Page::Home => {
                 if let Some(home_page) = &mut self.home {
                     home_page.handle_mouse(mouse);
+                }
+            }
+            Page::Branches => {
+                if let Some(branches_page) = &mut self.branches {
+                    branches_page.handle_mouse(mouse);
                 }
             }
         }
@@ -158,7 +175,7 @@ impl TuiState {
                     ("q", "quit"),
                 ]
             }
-            Page::Silo => {
+            Page::Silo | Page::Branches => {
                 vec![
                     ("Tab", "Next"),
                     ("/", "Search"),

@@ -21,6 +21,8 @@ GitKit is a fast, terminal-based repository explorer. It visualizes developer be
 
 🚨 Silo - Assess the risk of a knowledge silo per file via churn: Silo risk %, total churn
 
+🌿 Branches - Branch hygiene against the default branch: merged (including squash merges), stale, upstream gone, ahead/behind
+
 
 ### Prerequisites
 -  [Rust / Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) (for installation)
@@ -67,7 +69,7 @@ Use `--json` to print the metrics to stdout instead of opening the TUI, e.g. for
 gitkit --json [TARGET_PATH]
 ```
 
-Add `--only` with a comma separated list of `home`, `cadence` and `silo` to only compute those sections. Skipping `silo` is much faster on large repositories, since it diffs the whole history:
+Add `--only` with a comma separated list of `home`, `cadence`, `silo` and `branches` to only compute those sections. Skipping `silo` is much faster on large repositories, since it diffs the whole history:
 
 ```shell
 gitkit --json --only home,cadence
@@ -106,11 +108,31 @@ The output looks like this (arrays shortened):
       "total_churn": 576,
       "authors": [{ "email": "dev@example.com", "churn": 576 }]
     }]
+  },
+  "branches": {
+    "base": "origin/main",
+    "stale_after_days": 90,
+    "branches": [{
+      "name": "fix/typo",
+      "kind": "local",
+      "is_head": false,
+      "status": "merged",
+      "merged": true,
+      "squash_merged": true,
+      "stale": false,
+      "ahead": 1,
+      "behind": 6,
+      "upstream": "origin/fix/typo",
+      "upstream_gone": true,
+      "last_commit": { "id": "629f…", "author_email": "dev@example.com", "date": "2026-07-19T13:50:25Z", "timestamp": 1784469025 }
+    }]
   }
 }
 ```
 
-Authors and files are sorted the same way as in the TUI: authors by commits per week, and files by silo risk and then churn.
+Authors, files and branches are sorted the same way as in the TUI: authors by commits per week, files by silo risk and then churn, and branches by status (`merged`, `gone`, `stale`, `active`) and then oldest first.
+
+Branches are compared against the remote's default branch (`origin/HEAD`), falling back to a local `main` or `master`, then the checked out branch. A branch is `merged` when its tip is in that base, or when its combined change matches a single commit on it (a squash merge).
 
 For example, to list files where one person wrote more than 90% of the churn:
 
@@ -118,12 +140,18 @@ For example, to list files where one person wrote more than 90% of the churn:
 gitkit --json --only silo | jq -r '.silo.files[] | select(.risk_percent > 90) | .path'
 ```
 
+Or to list local branches that are merged or whose upstream was deleted:
+
+```shell
+gitkit --json --only branches | jq -r '.branches.branches[] | select(.kind == "local" and (.status == "merged" or .status == "gone")) | .name'
+```
+
 ## Keybindings
 
 GitKit is built for fast keyboard navigation:
 | Key | Action |
 | :--- | :--- |
-| `Tab` | Cycle through pages (Overview, Cadence, Silo) |
+| `Tab` | Cycle through pages (Overview, Cadence, Silo, Branches) |
 | `j` / `k` | Scroll up and down through lists |
 | `/` | Open the search modal to filter the current view |
 | `Esc` | Clear search or close modals |
